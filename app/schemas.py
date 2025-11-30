@@ -17,11 +17,16 @@ class PostCreate(PostBase):
 class PostUpdate(PostBase):
     pass
 
+class UserResponse(BaseModel):
+    id: int
+    created_at: datetime
+
 class PostResponse(PostBase):
-    id : int
-    created_at : datetime
-    account_id : int
-    account : UserResponse
+    id: int
+    created_at: datetime
+    account_id: int
+    account: UserResponse
+
 
 class PostVoteResponse(BaseModel):
     post : PostResponse
@@ -41,7 +46,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password : str
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id : int
     created_at : datetime
 

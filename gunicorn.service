@@ -1,0 +1,13 @@
+[Unit]
+Description=fastapi application
+After=network.target             it means "we need network to come up to start our service"
+
+[Service]
+User=stefan                     what user is going to run this server
+Group=stefan
+WorkingDirectory=/home/stefan/app/src   directory where app is running in
+Environment="PATH=/home/stefan/app/venv/bin"   we need to set the venv to run the gunicorn
+ExecStart=/home/stefan/app/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
+
+[Install]
+WantedBy=multi-user.target
