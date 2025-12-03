@@ -1,0 +1,2801 @@
+login to server
+
+
+install dependences we'll need:
+sudo apt install python3 pip
+pip install python3-virtualenv
+sudo apt install postgresql postgresql-contrib
+check: psql --version       ;      psql -U postgres    this will output error FATAL:  Peer authentication failed for user "postgres"; its because we login from stefan user but have to login as postgres user; to check if u have potgres user: cat /etc/passwd
+change user to postgres: sudo -i -u postgres   ;   -i gives you a login shell as postgres    
+you'll see postgres@stefanserver ; then run psql -U postgres ; youll see postgres=#;
+run \password postgres to set password to postgres user ; the /q to quit ; exit
+
+
+specify  which ip's can connect to your database:
+sudo nano /etc/postgresql/16/main/postgresql.conf
+find listen_addresses and set those ip's; i'll set '*' , meaniing all of the ip's
+
+specify which hosts are alowed to connect:
+sudo nano /etc/postgresql/16/main/pg_hba.conf
+how it was:
+# DO NOT DISABLE!
+# If you change this first entry you will need to make sure that the
+# database superuser can access the database using some other method.
+# Noninteractive access to all databases is required during automatic
+# maintenance (custom daily cronjobs, replication, and similar tasks).#
+# Database administrative login by Unix domain socket
+local   all             postgres                                peer
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# "local" is for Unix domain socket connections only
+local   all             all                                     peer
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            scram># IPv6 local connections:
+host    all             all             ::1/128                 scram># Allow replication connections from localhost, by a user with the
+# replication privilege.
+local   replication     all                                     peer
+host    replication     all             127.0.0.1/32            scram>host    replication     all             ::1/128                 scram>
+
+how it is now:
+
+# DO NOT DISABLE!
+# If you change this first entry you will need to make sure that the
+# database superuser can access the database using some other method.
+# Noninteractive access to all databases is required during automatic
+# maintenance (custom daily cronjobs, replication, and similar tasks).#
+# Database administrative login by Unix domain socket
+local   all             postgres                                scram>
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# "local" is for Unix domain socket connections only
+local   all             all                                     scram># IPv4 local connections:
+host    all             all             0.0.0.0/0               scram># IPv6 local connections:
+host    all             all             ::/0                    scram># Allow replication connections from localhost, by a user with the
+# replication privilege.
+local   replication     all                                     peer
+host    replication     all             127.0.0.1/32            scram>host    replication     all             ::1/128                 scram>
+
+
+
+restart : sudo systemctl restart postgresql
+
+
+login as postgres user: psql -U postgres
+connect to it noe using pgadmin:
+go to pgadmin: cereate production database : create server and host name = ip of your server (192.168.1.250)
+
+1. PostgreSQL needed to allow remote connections
+
+Initially, PostgreSQL was listening on all interfaces (0.0.0.0:5432) — that was correct.
+
+The real issue was pg_hba.conf — it did not allow your laptop’s IP (192.168.1.83).
+
+Fix: added a rule in pg_hba.conf:
+
+host    all     all     192.168.1.0/24    scram-sha-256
+
+
+This allowed all devices on your home LAN to connect.
+
+✅ 2. PostgreSQL firewall needed to allow incoming connections
+
+Even if PostgreSQL listens on all interfaces, UFW firewall can block it.
+
+Fix: allow LAN clients through port 5432:
+
+sudo ufw allow from 192.168.1.0/24 to any port 5432
+sudo ufw reload
+
+✅ 3. Use the correct IP in pgAdmin
+
+For home LAN connections: use server’s LAN IP (192.168.1.250).
+
+For remote access (outside your network), use Tailscale IP (100.x.x.x) and add a matching pg_hba.conf entry for Tailscale subnet:
+
+host    all     all     100.0.0.0/8    scram-sha-256
+
+✅ 4. Optional extra security
+
+Limit pg_hba.conf entries to only the IPs you need (instead of 0.0.0.0/0)
+
+Keep SSH and PostgreSQL passwords strong
+
+Use Tailscale for remote access instead of exposing PostgreSQL to the public Internet
+
+✅ Summary Table
+
+
+if error with pasword:
+Temporarily allow local access without password
+
+Edit pg_hba.conf:
+
+bashsudo nano /etc/postgresql/*/main/pg_hba.conf
+
+Find this line (should be near the top):
+
+conflocal   all             postgres                                scram-sha-256
+
+Change it to trust temporarily:
+
+conflocal   all             postgres                                trust
+
+Restart PostgreSQL:
+
+bashsudo systemctl restart postgresql
+
+Now connect without password:
+
+bashsudo -u postgres psql
+
+Reset the password:
+
+sqlALTER USER postgres PASSWORD 'your_new_secure_password';
+
+Exit:
+
+sql\q
+
+Change pg_hba.conf back to scram-sha-256:
+
+bashsudo nano /etc/postgresql/*/main/pg_hba.conf
+Change back to:
+conflocal   all             postgres                                scram-sha-256
+
+Restart PostgreSQL again:
+
+bashsudo systemctl restart postgresql
+
+
+create app directory mkdir app     ,      cd app
+create virtual environment virtualenv venv , u can check with ll, then activate it source venv/bin/activate (The primary function of source (which can also be abbreviated as . - a single dot) is to read and execute commands from the specified file in the current shell.). if (venv) appears - it works . if u want to get out -write deactivate
+get out and create folder mkdir src ,  cd src; this source code will contain all our source code; we may parse it from github for example
+go to github repositories and copy link (code -> https), 
+git clone https://github.com/StepanZubok/api.git .
+"""When you run git clone path ., the dot tells Git to clone the repository into the directory you are currently in, rather than creating a new subdirectory with the repository's name.
+
+🎯 Purpose of the Dot (.)
+1. Clones to the Current Directory
+Normal Clone (Without the Dot):
+
+Bash
+
+git clone https://github.com/user/repo-name.git
+This command will create a new directory named repo-name inside your current location and place all the repository files there.
+
+Clone with the Dot:
+
+Bash
+
+git clone https://github.com/user/repo-name.git .
+This command will clone the contents of the repository directly into your current working directory. The files will be placed immediately in the directory where you executed the command.
+
+2. Useful for Pre-made Directories
+The dot is often used when you have already created the target directory and navigated into it.
+
+Example Scenario:
+
+Instead of doing:
+
+mkdir my-project
+
+cd my-project
+
+git clone https://github.com/user/my-project.git (This incorrectly creates another my-project folder inside the first one).
+
+You correctly do this:
+
+mkdir my-project
+
+cd my-project
+
+git clone https://github.com/user/my-project.git **.**
+
+The last command ensures the files populate the my-project folder directly, which is usually the desired result when setting up a project.
+
+Caution: Be careful when using the dot (.). If your current directory already contains files, cloning a repository into it can potentially overwrite or mix files, though Git will often issue a warning if the directory is not empty."""
+
+to check whats inside : ll
+reactivate venv: cd ..   ;   source venv/bin/activate
+as we gor rewuirenment.txt we can i stall all dependences we need: pip install -r requirenments.txt
+if u have an error: look for the library mentioned in error (include <lib.....) . deactivate ;sudo apt install lib....
+i got error with pg_config.h ; but i installed libpq-dev as a parent library that conatins packages like pg_config.h
+
+
+to run app write uvicorn app.main:app
+but u'll see error about environmental variables, so to fix this we'll have to create those variables
+
+-create environment variables
+export MY_NAME = stefan
+printenv to see env variables
+remove env variable: unset MY_NAME
+
+go to home directory: cd ~  ; touch .env ; ll to see if its with app in one folder
+nano .etc ;  paste there all variables
+nano ~/.bashrc (~/.bashrc runs every time you start a new terminal window or shell session.)
+at the bootom paste :
+set -o allexport
+source $HOME/.env
+set +o allexport
+
+
+in pgadmin create database (mine is fastapi)
+
+Full Plan / Checklist
+1. Create .env file
+
+Place it in your project directory (or home directory).
+
+Include all variables, e.g.:
+
+DATABASE_HOSTNAME=localhost
+DATABASE_PORT=5432
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=12345       # must match actual PostgreSQL password
+DATABASE_NAME=fastapi
+SECRET_KEY="abc"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+DATABASE_URL="postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@${DATABASE_HOSTNAME}:${DATABASE_PORT}/${DATABASE_NAME}"
+
+
+✅ DATABASE_URL must be a valid connection string. No extra symbols like >.
+
+2. Load environment variables automatically
+
+Add to your .bashrc or .profile so variables are available on login:
+
+# Load project environment variables
+if [ -f "$HOME/.env" ]; then
+    set -o allexport
+    source "$HOME/.env"
+    set +o allexport
+fi
+
+
+Reload with:
+
+source ~/.bashrc   # or log out and log back in
+
+
+Verify variables:
+
+echo $DATABASE_URL
+echo $DATABASE_USERNAME
+echo $DATABASE_PASSWORD
+
+3. Ensure PostgreSQL user/password match
+
+Test manual connection:
+
+psql -h localhost -U postgres -d fastapi
+
+
+If password fails:
+
+sudo -u postgres psql
+ALTER USER postgres WITH PASSWORD '12345';
+\q
+
+4. Check Alembic configuration
+
+In alembic.ini:
+
+[alembic]
+# Use environment variable if desired:
+sqlalchemy.url = env:DATABASE_URL
+
+
+Or directly in env.py:
+
+from os import getenv
+DATABASE_URL = getenv("DATABASE_URL")
+connectable = create_engine(DATABASE_URL)
+
+5. Run Alembic
+
+Make sure you’re in your virtual environment:
+
+source venv/bin/activate
+alembic upgrade head
+
+
+If you see OperationalError: password authentication failed → check .env and PostgreSQL password again.
+
+
+now if u refresh the tables ull see alla lembic versions 
+
+
+
+(venv).../app/src   uvicorn app.main:app
+but i got an error and needed to manually fix it in /home/stefan/app/src/app/schemas.py . i needed to place UserResponse class above PostResponse class + change from UserBase to BaseModel
+if u have error like: (venv) stefan@stefanserver:~/app/src$ uvicorn app.main:app
+INFO:     Started server process [4716]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 8000): address already in use
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+then use sudo lsof -i :8000 (1. lsof
+This stands for List Open Files.
+
+In Unix-like systems, almost everything is treated as a file, including network connections, sockets, and devices.
+
+The lsof utility lists all open files and the processes that opened them.
+
+2. -i
+This option tells lsof to focus only on Internet files (network connections and sockets).
+
+3. :8000
+This is the specific filter applied to the network files (-i).
+
+The colon (:) followed by a number specifies the port number to search for.
+
+By specifying :8000, the command only shows active network connections or listening sockets that are using port 8000.)
+
+and stop it kill <PID>, or kill -9 <PID>
+
+
+2️⃣ Make sure Uvicorn uses all network interfaces
+
+By default, Uvicorn binds to 127.0.0.1 (localhost), which is only accessible from the server itself.
+
+Start Uvicorn with:
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+This makes it reachable from other machines in the same network.
+
+
+3️⃣ Open the firewall on the server
+
+Check if ufw is active:
+
+sudo ufw status
+
+
+If active, allow port 8000:
+
+sudo ufw allow 8000/tcp
+sudo ufw reload
+
+
+This ensures incoming connections can reach your app.
+
+
+Test locally first
+
+On the server:
+
+curl http://127.0.0.1:8000/
+
+
+Should return:
+
+{"message": "hello"}     because we set earlier get request from root(/)
+
+5️⃣ Access from another machine
+
+Use the server’s LAN IP (for example, 192.168.1.250):
+
+curl http://192.168.1.250:8000/
+
+
+Now you should see the JSON response from FastAPI.
+
+
+
+127.0.0.1 (localhost)
+
+Refers only to the local machine.
+
+When you bind a server to 127.0.0.1, it can only accept connections from the same machine.
+
+Example:
+
+uvicorn app.main:app --host 127.0.0.1
+
+
+Works on the server itself:
+
+curl http://127.0.0.1:8000/
+
+
+Won’t work from another computer on your network:
+
+curl http://192.168.1.250:8000/   # Fails
+
+2️⃣ 0.0.0.0 (all interfaces)
+
+Tells the server to listen on all network interfaces, including:
+
+127.0.0.1 (localhost)
+
+LAN IP (e.g., 192.168.1.250)
+
+Public IP if the server has one
+
+Example:
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+
+Now you can access it from:
+
+The server itself:
+
+curl http://127.0.0.1:8000/
+
+
+Any other computer on the same network:
+
+curl http://192.168.1.250:8000/
+
+
+Binding your server to 0.0.0.0 means:
+
+The server will listen on all network interfaces of the machine.
+
+Any device that can reach those interfaces can try to connect.
+
+But here’s the key:
+
+Inside your home network (LAN): Devices can access it via the local IP (e.g., 192.168.1.250:8000). ✅
+
+Outside your home network (WAN / internet): Devices cannot access it just because it’s 0.0.0.0. You need port forwarding, VPN, or a tunneling service. ❌
+
+So 0.0.0.0 gives access to all IPs reachable by the server, which usually means just your local network unless you explicitly expose it to the internet.
+
+
+
+now if we reboot server it doesnt restart automatically ; we'll use gunicorn
+(venv)...  pip install gunicorn  (ushould have added it to requirements.txt)
+if u have any errors u also need to install httptools and uvloop
+"""What it is: A high-performance event loop implementation for Python, written in Cython, built on top of libuv (same library Node.js uses).
+
+Why it matters:
+
+Uvicorn (the ASGI server) is asynchronous, and it relies on an event loop to handle multiple requests concurrently without threads.
+
+Python’s default event loop (asyncio) is okay but slower than uvloop.
+
+Effect: Using uvloop can make your server handle more requests per second with lower latency.
+
+Example: Uvicorn automatically uses uvloop if it’s installed:
+
+pip install uvloop
+uvicorn app.main:app
+
+2. httptools
+
+What it is: A fast HTTP parser written in C.
+
+Why it matters:
+
+Uvicorn needs to parse incoming HTTP requests (headers, body, method, etc.) efficiently.
+
+Python’s pure implementation is slower. httptools is much faster for parsing HTTP traffic.
+
+Effect: Faster request parsing, reducing overhead when your server gets many HTTP requests."""
+
+
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
+
+(gunicorn
+
+Gunicorn is a WSGI/ASGI HTTP server for Python.
+
+It runs your FastAPI app in a production-ready environment.
+
+2. -w 4
+
+-w stands for workers.
+
+4 means Gunicorn will spawn 4 worker processes to handle requests.
+
+Each worker can handle multiple async requests if using UvicornWorker.
+
+Tip: A common formula is workers = 2 * CPUs + 1. So if you have 4 CPUs, -w 9 could also work, but you don’t usually go overboard.
+
+3. -k uvicorn.workers.UvicornWorker
+
+-k specifies the worker class.
+
+uvicorn.workers.UvicornWorker tells Gunicorn to use Uvicorn’s async worker.
+
+This is necessary because FastAPI is an ASGI app, not WSGI.
+
+It allows each worker to handle async requests efficiently.
+
+4. app.main:app
+
+This points to your FastAPI app instance.
+
+app.main → Python module main.py inside the app/ package.
+
+app → the FastAPI instance in that module:
+
+app = FastAPI()
+
+5. --bind 0.0.0.0:8000
+
+Binds the server to all network interfaces on port 8000.
+
+0.0.0.0 means the server is reachable from other machines on the network (LAN, or public IP if exposed).
+ghow to know aomunt of cpus? in pythin file: In Python (cross-platform)
+import os
+print(os.cpu_count()))
+
+WSGI (Web Server Gateway Interface) 🐍
+Web Server Gateway Interface
+Nature: Synchronous (Blocking)
+
+The Analogy: A classic waiter . This waiter takes one order (request) to the kitchen, stands there and waits for it to be cooked, and only then returns to take the next order.
+
+How it Works: WSGI is designed to handle one request per thread or process at a time. If the application has to wait for an I/O operation (like a slow database query or an external API call), the entire thread/process is blocked and cannot serve any other client until that operation finishes.
+
+Use Case: Traditional, stable web applications like standard blogs or corporate websites that don't need real-time communication.
+
+Protocols Supported: Primarily HTTP/1.1.
+
+Servers/Frameworks: Gunicorn, uWSGI, Flask, older versions of Django.
+
+2. ASGI (Asynchronous Server Gateway Interface) 🚀
+Asynchronous Server Gateway Interface
+Nature: Asynchronous (Non-blocking)
+
+The Analogy: A modern, multitasking waiter. He takes an order, sends it to the kitchen, and while the food is cooking (the application is waiting for I/O), he switches to serving other tables and taking new orders. He only returns to the first order when the kitchen signals the food is ready.
+
+How it Works: ASGI allows the application to switch tasks when waiting for I/O operations (using Python's async and await keywords). This means a single process can efficiently manage thousands of concurrent connections without blocking.
+
+Use Case: Modern, high-concurrency applications, real-time features (chat, live updates), and long-lived connections.
+
+Protocols Supported: HTTP/1.1, HTTP/2, WebSockets, and other non-HTTP protocols.
+
+Servers/Frameworks: Uvicorn, Daphne, FastAPI, Django Channels.
+
+
+check in another terminal the processes: ps -aef | grep -i gunicorn
+
+ps
+
+Stands for process status.
+
+Used to show currently running processes.
+
+-a (all)
+
+Show all processes with a terminal (tty) except session leaders.
+
+Includes processes started by other users, not just your own.
+
+-e (everyone)
+
+Show all processes running on the system.
+
+Essentially similar to -A.
+
+-f (full)
+
+Full-format listing. Shows detailed information like UID, PID, PPID, start time, command, etc.
+
+Typical Output Columns:
+
+Example:
+
+UID        PID  PPID  C STIME TTY          TIME CMD
+root         1     0  0 08:00 ?        00:00:02 /sbin/init
+stefan    2345  2300  0 12:30 pts/1    00:00:00 bash
+
+Column	Meaning
+UID	User ID who owns the process
+PID	Process ID (unique number for the process)
+PPID	Parent Process ID (who started this process)
+C	CPU usage percentage
+STIME	Start time of the process
+TTY	Terminal associated with the process (? if none)
+TIME	CPU time used by the process
+CMD	Command that started the process
+Use Cases:
+
+Find processes you or others are running.
+
+Identify PID to kill a process:
+
+kill <PID>
+
+
+Check which processes are consuming CPU or memory.
+
+
+
+grep
+
+Stands for Global Regular Expression Print.
+
+It searches for lines in files (or input from another command) that match a given pattern.
+
+Example:
+
+grep "error" logfile.txt
+
+
+This will print all lines in logfile.txt that contain the string error.
+
+Case-sensitive by default: it will match error but not Error or ERROR.
+
+-i option
+
+Makes the search case-insensitive.
+
+Now it matches error, Error, ERROR, etc.
+
+Example:
+
+grep -i "error" logfile.txt
+
+
+This will print any line that contains error, regardless of uppercase or lowercase letters.
+
+
+ 
+now make this website to run in the bacjground , so that i can use terminal at that time. and i want it to start on boot my server 
+we'll make our own service to start the application:
+
+to see all of the services that are installed on our machiene write  (venv) stefan@stefanserver:~/app/src$    ls .etc/systemd/system/
+
+
+
+cd /etc/systemd/system
+sudo nano fastapi.service (i want my service to be named fastapi)
+[Unit]
+Description=fastapi application
+After=network.target             it means "we need network to come up to start our service"
+
+[Service]
+User=stefan                     what user is going to run this server
+Group=stefan
+WorkingDirectory=/home/stefan/app/src   directory where app is running in
+Environment="PATH=/home/stefan/app/venv/bin"   we need to set the venv to run the gunicorn
+ExecStart=/home/stefan/app/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
+
+[Install]
+WantedBy=multi-user.target
+
+if i get an error , try:
+pip uninstall gunicorn -y
+pip install gunicorn
+sudo systemctl daemon-reload
+sudo systemctl restart fastapi
+
+
+now in status loaded: disabled ; so to make it start automatically 
+sudo systemctl enable fastapi
+
+
+
+-NGINX:
+
+sudo apt install nginx -y
+systemctl start nginx
+sudo ufw allow 80/tcp     http port
+sudo ufw allow 443/tcp    https port
+stefan@stefanserver:/etc/nginx/sites-available$ sudo nano default
+in location section delete everything and paste this:
+location / {
+                # First attempt to serve request as file, then
+                # as directory, then fall back to displaying a 4>        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_>        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Nginx-Proxy true;
+        proxy_redirect off;
+        }
+
+location / { ... }
+
+Defines how Nginx should handle requests that match a URL path.
+
+/ → matches all requests to your domain.
+
+Variants:
+
+location = / → exact match for /.
+
+location /api/ → matches anything starting with /api/.
+
+location ~ \.php$ → regex match (for PHP files).
+
+location ~* \.(jpg|png)$ → case-insensitive regex for images.
+
+Inside a location, you can:
+
+Serve static files.
+
+Reverse proxy requests to another server/app.
+
+Apply caching, redirects, headers, etc.
+
+2️⃣ proxy_pass http://127.0.0.1:8000;
+
+Purpose: Forwards requests to a backend server (your FastAPI app).
+
+Common for Python apps because Nginx doesn’t run Python itself.
+
+http://127.0.0.1:8000 → backend server listening on localhost port 8000.
+
+Variants:
+
+http://127.0.0.1:8000/ (with trailing slash) → changes how the URI is passed to backend.
+
+https://backend.example.com → can also proxy to HTTPS backend.
+
+Important: Nginx does not modify request body by default. It just forwards the request and waits for the response.
+
+3️⃣ proxy_http_version 1.1;
+
+Default Nginx uses HTTP/1.0 for proxied requests.
+
+HTTP/1.1 is required for WebSockets.
+
+Options:
+
+1.0 → old, simple requests, no keep-alive by default.
+
+1.1 → supports persistent connections, chunked transfers, WebSockets.
+
+4️⃣ proxy_set_header X-Real-IP $remote_addr;
+
+Sends the client’s IP to the backend app.
+
+$remote_addr → the IP of the client connecting to Nginx.
+
+Many backend apps use this for logging, rate-limiting, or authentication.
+
+Without this, your FastAPI app will see Nginx’s IP (usually 127.0.0.1).
+
+5️⃣ proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+Maintains a chain of client IPs through proxies.
+
+$proxy_add_x_forwarded_for → appends client IP to any existing X-Forwarded-For header.
+
+Example header seen by backend:
+
+X-Forwarded-For: 203.0.113.10, 127.0.0.1
+
+
+Common in apps behind multiple reverse proxies.
+
+6️⃣ proxy_set_header Upgrade $http_upgrade;
+
+Needed for WebSocket connections.
+
+WebSockets use HTTP headers Upgrade: websocket to switch protocols.
+
+$http_upgrade → Nginx takes the client’s Upgrade header and passes it to backend.
+
+7️⃣ proxy_set_header Connection upgrade;
+
+Complements Upgrade header.
+
+Ensures Nginx does not close the connection immediately.
+
+For normal HTTP requests, you might use:
+
+proxy_set_header Connection "";
+
+
+For WebSockets, always:
+
+proxy_set_header Connection $connection_upgrade;
+
+
+where $connection_upgrade resolves to upgrade if upgrading.
+
+8️⃣ proxy_set_header Host $host;
+
+Passes the original Host header from client to backend.
+
+$host → domain the client requested.
+
+Important for:
+
+FastAPI routing using request.url or request.host.
+
+Apps that serve content differently for different domains.
+
+9️⃣ proxy_set_header X-Nginx-Proxy true;
+
+Custom header you added.
+
+Backend can detect if request came through Nginx.
+
+Optional, purely for application logic.
+
+🔟 proxy_redirect off;
+
+Nginx automatically rewrites Location headers from backend for redirects.
+
+off → disables this rewriting.
+
+Example:
+
+Backend returns Location: http://127.0.0.1:8000/login
+
+Without proxy_redirect off, Nginx might rewrite it to http://example.com/login.
+
+Setting off keeps backend redirects as-is.
+
+⚡ Optional / advanced proxy directives
+
+Timeouts:
+
+proxy_connect_timeout 10s;
+proxy_read_timeout 30s;
+proxy_send_timeout 10s;
+
+
+Buffers / body size limits:
+
+proxy_buffering off;
+client_max_body_size 50M;
+
+
+WebSocket helper variables:
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+proxy_set_header Connection $connection_upgrade;
+
+
+Caching responses: proxy_cache mycache;
+
+SSL backends: proxy_pass https://127.0.0.1:8443;
+
+Rewrite paths: proxy_pass http://127.0.0.1:8000/api/;
+
+
+
+
+
+[Browser] 
+   |
+   | HTTP GET / HTTP/1.1
+   | Host: example.com
+   | Upgrade: websocket (optional)
+   | X-Forwarded-For: (maybe existing)
+   |
+   v
+[Nginx Reverse Proxy]
+   location / { 
+       proxy_pass http://127.0.0.1:8000;
+       proxy_http_version 1.1;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Connection upgrade;
+       proxy_set_header Host $host;
+       proxy_set_header X-Nginx-Proxy true;
+       proxy_redirect off;
+   }
+   |
+   | HTTP/1.1 GET / HTTP/1.1
+   | Host: example.com
+   | X-Real-IP: 203.0.113.10
+   | X-Forwarded-For: 203.0.113.10, 127.0.0.1
+   | Upgrade: websocket (if browser requested)
+   | Connection: upgrade (if websocket)
+   | X-Nginx-Proxy: true
+   |
+   v
+[FastAPI App on 127.0.0.1:8000]
+   - Receives request
+   - Can read real client IP from X-Real-IP or X-Forwarded-For
+   - Can handle WebSocket if Upgrade header present
+   - Can see Host header to serve domain-specific content
+   - Processes request
+   |
+   | HTTP/1.1 200 OK
+   | (body: JSON or HTML)
+   | Location: ... (redirects preserved)
+   |
+   v
+[Nginx]
+   - Forwards backend response to client
+   - If proxy_redirect off → Location headers unchanged
+   - Otherwise Nginx could rewrite redirects
+   |
+   v
+[Browser]
+   - Receives response from Nginx
+   - Sees correct content
+   - WebSocket connection established if applicable
+
+
+
+Key Points from Diagram
+
+Client IP headers:
+
+X-Real-IP → original client IP.
+
+X-Forwarded-For → chain of proxies, including your Nginx.
+
+WebSocket support:
+
+Upgrade + Connection: upgrade ensures persistent socket connection.
+
+Host preservation:
+
+Host header ensures FastAPI knows which domain the client requested.
+
+Custom headers:
+
+X-Nginx-Proxy: true → backend can detect requests came through Nginx.
+
+Redirect handling:
+
+proxy_redirect off → backend redirect URLs stay as-is.
+
+
+
+
+Setting up local HTTPS for FastAPI app
+What you accomplished:
+1. Local domain name (on Windows PC):
+
+Edited C:\Windows\System32\drivers\etc\hosts
+Added: 192.168.1.250    myapp.local
+Now you can use myapp.local instead of IP address
+
+2. SSL Certificate (on Ubuntu server):
+bashsudo mkdir -p /etc/nginx/ssl
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/myapp.key \
+  -out /etc/nginx/ssl/myapp.crt \
+  -subj "/CN=myapp.local"
+
+
+
+
+3. Nginx configuration (on Ubuntu server):
+
+Updated /etc/nginx/sites-available/default
+# Redirect HTTP to HTTPS
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name myapp.local;
+    
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS server
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    
+    server_name myapp.local;
+    
+    # SSL certificate
+    ssl_certificate /etc/nginx/ssl/myapp.crt;
+    ssl_certificate_key /etc/nginx/ssl/myapp.key;
+    
+    # SSL settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Nginx-Proxy true;
+        proxy_redirect off;
+    }
+}
+
+Added HTTPS on port 443 with SSL certificate
+Added automatic HTTP → HTTPS redirect
+Reloaded Nginx: sudo systemctl reload nginx
+
+Result:
+
+✅ Type http://myapp.local → automatically redirects to https://myapp.local
+✅ Your FastAPI app is accessible via HTTPS
+⚠️ Browser shows red "Not Secure" warning (normal for self-signed certs)
+✅ Click "Advanced" → "Proceed anyway" to access your app
+
+
+
+
+handle ssl (no https):
+
+go to certbot website -> get certbot instructions -> nginx -> ubuntu 20.0.4 -> 
+install snap (snap is similar to apt)
+sudo snap install --classic certbot
+
+
+
+
+
+
+
+
+-Tailscale:
+login in browser. download on windows ; in linux server run curl -fsSL https://tailscale.com/install.sh | sh ; sudo tailscale up  it should give link where u authorize. if no - try sudo tailscale logout    sudo tailscale up
+
+Serve:
+sudo tailscale serve --bg --http 1234 /home/stefan
+
+sudo tailscale status
+100.90.76.75   stefanserver     stepanzubokk@  linux    -     
+100.79.34.128  desktop-qo7fili  stepanzubokk@  windows  active; direct 192.168.1.83:41641, tx 93076 rx 51660
+100.99.99.46   laptop-ltnod9a5  stepanzubokk@  windows  offline, last seen 1h ago
+stefan@stefanserver:~$ sudo tailscale serve status
+http://stefanserver:1234 (tailnet only)
+http://stefanserver.tail59785b.ts.net:1234 (tailnet only)
+|-- / path  /home/stefan
+
+
+sudo tailscale serve reset   closes the connection
+
+
+create serve again: stefan@stefanserver:~$ sudo tailscale serve --bg --https=443 -
+-set-path /files /home/stefan
+Available within your tailnet:
+
+https://stefanserver.tail59785b.ts.net/files/
+|-- path  /home/stefan
+
+Serve started and running in the background.
+To disable the proxy, run: tailscale serve --https=443 off
+
+
+tailscale serve status
+https://stefanserver.tail59785b.ts.net (tailnet only)
+|-- /files/ path  /home/stefan
+
+
+
+
+Funnel:
+now open it to entire internet:
+
+sudo tailscale funnel --bg --https=443 --set-path /files /home/stefan
+
+stefan@stefanserver:~$ sudo tailscale serve status
+
+# Funnel on:
+#     - https://stefanserver.tail59785b.ts.net
+
+https://stefanserver.tail59785b.ts.net (Funnel on)
+|-- /files/ path  /home/stefan
+
+
+sudo tailscale serve reset to close entire connection
+
+sudo tailscale funnel --https=443 off to close the funnel only
+
+
+
+- only SSH with 2FA is allowed:
+Restrict access to SSH only
+
+Make sure your server does not expose other services over Tailscale or the internet.
+
+On your server (Linux), set the firewall to only allow connections to the SSH port (usually 22) from your Tailscale network:
+
+# Example using ufw (Ubuntu/Debian)
+sudo ufw default deny incoming
+sudo ufw allow from 100.64.0.0/10 to any port 22   # Tailscale IP range
+sudo ufw enable
+
+
+Replace 100.64.0.0/10 with your tailnet range if different.
+
+
+stefan@stefanserver:~$ sudo ufw default deny incoming
+Default incoming policy changed to 'deny'
+(be sure to update your rules accordingly)
+stefan@stefanserver:~$ sudo ufw allow from 100.90.76.75 to any port 6996
+Rule added
+stefan@stefanserver:~$ sudo ufw enable
+Command may disrupt existing ssh connections. Proceed with operation (y|n)? y
+Firewall is active and enabled on system startup
+stefan@stefanserver:~$ sudo ufw status
+Status: active
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere
+80/tcp                     ALLOW       Anywhere
+443/tcp                    ALLOW       Anywhere
+6996/tcp                   ALLOW       Anywhere
+6996                       ALLOW       100.90.76.75
+22/tcp (v6)                ALLOW       Anywhere (v6)
+80/tcp (v6)                ALLOW       Anywhere (v6)
+443/tcp (v6)               ALLOW       Anywhere (v6)
+6996/tcp (v6)              ALLOW       Anywhere (v6)
+
+
+
+
+Enforce SSH 2FA
+
+Enable 2FA in SSH. For example, using Google Authenticator / TOTP:
+
+sudo apt install libpam-google-authenticator
+google-authenticator          # run for each user
+
+
+Then edit /etc/ssh/sshd_config:
+
+ChallengeResponseAuthentication yes
+AuthenticationMethods publickey,keyboard-interactive
+
+
+This forces public key + 2FA. Restart SSH:
+
+sudo systemctl restart ssh
+
+
+
+
+
+-Commit to git
+
+if u add some changes: git add . ; git commit -m "" ; git push origin main
+then go to folder with your project. mine is app/api in api i have .py files with code and so on
+
+i go taan errro when pulling:
+stefan@stefanserver:~/app/api$ git pull
+remote: Enumerating objects: 13, done.
+remote: Counting objects: 100% (13/13), done.
+remote: Compressing objects: 100% (4/4), done.
+remote: Total 8 (delta 3), reused 8 (delta 3), pack-reused 0 (from 0)
+Unpacking objects: 100% (8/8), 1.31 KiB | 223.00 KiB/s, done.
+From https://github.com/StepanZubok/api
+   023e81f..f20019a  main       -> origin/main
+Updating 023e81f..f20019a
+error: Your local changes to the following files would be overwritten by merge:
+        app/schemas.py
+Please commit your changes or stash them before you merge.
+Aborting
+
+Option 1: Keep your server changes and merge them
+If your server changes are important:
+bash# Commit your local changes first
+git add app/schemas.py
+git commit -m "Local changes to schemas"
+
+# Then pull
+git pull
+If there are conflicts, Git will ask you to resolve them manually.
+Option 2: Temporarily stash your changes
+If you want to pull first and deal with your changes later:
+bash# Stash your changes
+git stash    
+
+# Pull the updates
+git pull
+
+# Reapply your stashed changes
+git stash pop
+
+
+git stash
+Temporarily saves your uncommitted changes and removes them from your working directory.
+Think of it like putting your changes in a drawer for safekeeping:
+bash# You have uncommitted changes
+git stash           # Saves changes & cleans working directory
+# Now your files look like the last commit
+git pull            # Safe to pull now
+git stash pop       # Takes changes out of drawer and reapplies them
+When to use it: When you want to keep your changes but need a clean working directory temporarily.
+Your changes are stored in a "stash stack" - you can stash multiple times:
+bashgit stash list      # See all stashed changes
+git stash pop       # Apply most recent stash and remove it
+git stash apply     # Apply most recent stash but keep it in the list
+git stash drop 
+
+
+Option 3: Discard your server changes
+If your server changes were accidental or you want to completely overwrite them with what's in VSCode:
+bash# This will PERMANENTLY delete your local changes
+git checkout app/schemas.py
+
+# Then pull
+git pull
+
+
+git checkout <file>
+Discards all uncommitted changes to that file and reverts it to the last committed version.
+It's like hitting "undo" until you're back to the last save point:
+bashgit checkout app/schemas.py    # PERMANENTLY deletes uncommitted changes
+⚠️ Warning: This is destructive - your changes are gone forever!
+
+
+i chose:
+stefan@stefanserver:~/app/api$ git checkout app/schemas.py
+Updated 1 path from the index
+stefan@stefanserver:~/app/api$ git pull
+Updating 023e81f..f20019a
+Fast-forward
+ .gitignore       |  3 ++-
+ app/main.py      |  6 +++++-
+ app/schemas.py   | 15 ++++++++++-----
+ gunicorn.service | 13 +++++++++++++
+ nginx            | 18 ++++++++++++++++++
+ 5 files changed, 48 insertions(+), 7 deletions(-)
+ create mode 100644 gunicorn.service
+ create mode 100644 nginx
+
+if u modified requirements.txt the u defifnitely want to pip install -r requirements.txt on server
+
+
+and restart your service: sudo systemctl restart fastapi
+
+
+-DOCKER:
+
+
+create Dockerfile in root of a folder (not in app or smth):
+FROM python
+WORKDIR /usr/src/app
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+COPY . .
+CMD [ "uvicorn", "app.,ain:app", "--host", "0.0.0.0", "--port", "8000" ]
+
+
+Подробное объяснение команд COPY в Dockerfile
+COPY requirements.txt ./
+Что делает эта команда?
+Эта команда копирует только один файл requirements.txt из вашей локальной директории (где находится Dockerfile) в рабочую директорию контейнера (/usr/src/app).
+Почему только requirements.txt, а не другие файлы?
+Это связано с оптимизацией кэширования слоёв Docker. Вот подробное объяснение:
+Как работает кэш Docker:
+
+Docker строит образ послойно (каждая инструкция = отдельный слой)
+Если файлы не изменились, Docker переиспользует закэшированный слой
+Если файл изменился, Docker пересобирает этот слой и ВСЕ последующие
+
+Почему это важно:
+
+Файл requirements.txt меняется редко - вы не каждый день добавляете новые библиотеки
+Установка зависимостей (pip install) занимает много времени - может длиться минуты
+Код вашего приложения меняется часто - при каждом изменении кода
+
+Что произошло бы без раздельного копирования:
+dockerfile# ❌ ПЛОХОЙ ВАРИАНТ
+COPY . .  # копируем всё сразу
+RUN pip install -r requirements.txt
+Проблема: Каждый раз, когда вы меняете хотя бы одну строку кода в любом файле:
+
+Docker видит, что содержимое изменилось
+Инвалидирует кэш слоя COPY . .
+Заново устанавливает ВСЕ библиотеки (хотя requirements.txt не менялся!)
+Сборка занимает 5-10 минут вместо 5-10 секунд
+
+С раздельным копированием:
+dockerfile# ✅ ХОРОШИЙ ВАРИАНТ
+COPY requirements.txt ./      # Слой 1: копируем только requirements
+RUN pip install -r requirements.txt  # Слой 2: устанавливаем зависимости
+COPY . .                      # Слой 3: копируем весь код
+Результат:
+
+Меняете код → Docker переиспользует закэшированные слои 1 и 2
+Установка зависимостей НЕ запускается повторно
+Сборка занимает несколько секунд!
+
+
+Какие ещё файлы можно копировать отдельно?
+1. package.json и package-lock.json (для Node.js)
+dockerfileCOPY package*.json ./
+RUN npm install
+COPY . .
+2. go.mod и go.sum (для Go)
+dockerfileCOPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+3. Pipfile и Pipfile.lock (для Python с Pipenv)
+dockerfileCOPY Pipfile Pipfile.lock ./
+RUN pipenv install --system --deploy
+COPY . .
+4. Gemfile и Gemfile.lock (для Ruby)
+dockerfileCOPY Gemfile Gemfile.lock ./
+RUN bundle install
+COPY . .
+5. pom.xml (для Java Maven)
+dockerfileCOPY pom.xml ./
+RUN mvn dependency:go-offline
+COPY . .
+6. Конфигурационные файлы, которые редко меняются
+dockerfileCOPY nginx.conf /etc/nginx/
+COPY config/ ./config/
+RUN some-setup-command
+COPY . .
+
+COPY . .
+Что делает эта команда?
+Копирует всё содержимое из текущей директории (где находится Dockerfile) в рабочую директорию контейнера (/usr/src/app).
+Подробнее:
+
+Первая точка (.) = исходная директория (ваш компьютер, папка с проектом)
+Вторая точка (.) = целевая директория (контейнер, текущая WORKDIR = /usr/src/app)
+
+Что копируется?
+ВСЁ:
+
+Ваш код приложения (app.py, main.py, и т.д.)
+Все Python модули и пакеты
+Подпапки с кодом
+Статические файлы (HTML, CSS, JS)
+Шаблоны
+Конфигурационные файлы
+И так далее
+
+Исключения (что НЕ копируется):
+
+Файлы, перечисленные в .dockerignore (если такой файл существует)
+Например, можно исключить: __pycache__/, *.pyc, .git/, venv/, node_modules/
+
+COPY . .
+Это значит:
+
+взять всё содержимое текущего build-каталога (точка слева = host context)
+
+поместить его в текущий рабочий каталог внутри образа (точка справа = WORKDIR)
+
+А твой WORKDIR — это:
+
+bash
+Copy code
+WORKDIR /usr/src/app
+То есть COPY . . → копирует все файлы твоего проекта в /usr/src/app внутри образа.
+
+Простой пример на пальцах:
+
+Хост:
+
+project/
+  app/main.py
+  requirements.txt
+  Dockerfile
+
+
+Dockerfile:
+
+COPY . .
+
+
+После сборки образа внутри него появится:
+
+/usr/src/app/app/main.py
+/usr/src/app/requirements.txt
+
+
+Контейнер сможет запустить твой код.
+
+Полная последовательность работы вашего Dockerfile
+dockerfileFROM python                    # 1. Базовый образ с Python
+WORKDIR /usr/src/app          # 2. Создаём и переходим в рабочую папку
+
+COPY requirements.txt ./       # 3. Копируем ТОЛЬКО файл зависимостей
+RUN pip install -r requirements.txt  # 4. Устанавливаем зависимости (долго!)
+
+COPY . .                       # 5. Копируем весь остальной код (быстро!)
+
+CMD [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000" ]
+# 6. Команда запуска приложения
+```
+
+### Почему такой порядок оптимален?
+
+**Сценарий 1: Вы меняете код приложения**
+- Слои 1-4 берутся из кэша ✅
+- Пересобирается только слой 5 (COPY . .)
+- **Время сборки: ~5-10 секунд**
+
+**Сценарий 2: Вы добавляете новую библиотеку в requirements.txt**
+- Слои 1-2 берутся из кэша ✅
+- Пересобираются слои 3-5 (установка зависимостей + копирование кода)
+- **Время сборки: ~3-5 минут** (но это редко происходит)
+
+
+Как это “создаёт образ”
+
+Docker создаёт образ послойно:
+
+FROM python → базовый слой
+
+WORKDIR /usr/src/app → новый слой
+
+COPY requirements.txt ./ → слой с файлом
+
+RUN pip install ... → слой с установленными пакетами
+
+COPY . . → слой с твоим кодом
+
+CMD ... → метаданные образа
+
+Каждая команда даёт слой → итог этих слоёв = образ.
+
+COPY . . — всего лишь один слой, в котором Docker добавляет файлы.
+
+
+
+❓Почему надо копировать requirements.txt отдельно?
+
+Потому что иначе любое изменение в коде заставит Docker пересоздавать дорогой слой с pip install.
+
+Сейчас происходит так:
+
+COPY requirements.txt ./
+→ если requirements.txt не менялся, этот слой кешируется
+
+RUN pip install -r requirements.txt
+→ тоже кешируется, пока файл тот же
+
+COPY . .
+→ изменения в коде ломают только этот слой, а pip не трогается
+
+Это правильная оптимизация.
+
+
+
+ docker build -t fastapi .  (-t = tag ; . = current directory, the root directory)
+
+ docker image ls   to see all images
+
+To delete a Docker image from the console, run:
+
+docker rmi <image_name_or_id>
+
+
+If the image is in use by containers, stop/remove them first:
+
+docker ps -a          # list containers
+docker rm <container_id>
+
+
+Then remove the image:
+
+docker rmi <image_id>
+
+
+If you want to force-remove it:
+
+docker rmi -f <image_id>
+
+
+
+
+create docker-compose.yaml file:
+version: "3"
+services: 
+  api:
+    build: .
+    ports: 
+      - 6996:8000
+    env_file:
+      - ./.env
+
+    
+
+Строка 1 — version: "3"
+
+Что это делает: указывает формат файла Docker Compose — в данном случае версия спецификации 3.x.
+
+Почему важно: разные версии спецификации поддерживают разные ключи и поведение (например, deploy секция ориентирована на swarm mode и доступна в 3+).
+
+Практическое замечание: современные docker compose (v2 CLI) часто игнорируют этот номер в части совместимости, но его всё ещё полезно указывать и он влияет на некоторые опции.
+
+Ошибки: значение должно быть строкой или числом; неверный формат — синтаксическая ошибка YAML для compose.
+
+Строка 2 — services:
+
+Что это делает: корневой ключ, под которым объявляются все сервисы (контейнеры), которые compose будет запускать.
+
+Семантика: каждый дочерний ключ под services — отдельный сервис с собственными инструкциями (build/image, ports, volumes и т.д.).
+
+Замечание: если services отсутствует, compose ничего не запустит — это обязательный блок.
+
+Строка 3 — api:
+
+Что это делает: имя сервиса. В вашем случае сервис называется api.
+
+Последствия:
+
+По умолчанию контейнер будет называться <project>_api_1 (где <project> — имя папки или имя, переданное через -p), если вы явно не задали container_name.
+
+Другие сервисы в том же docker-compose.yml могут ссылаться на него по имени api.
+
+Замечание: имя должно быть валидным YAML ключом — избегайте пробелов и специальных символов.
+
+Строка 4 — build: .
+
+Что это делает: указывает, что образ должен быть построен из Dockerfile, находящегося в контексте . (текущая директория, где лежит docker-compose.yml).
+
+Детали:
+
+. — это context (включаются файлы из этой директории при сборке). Docker отправит этот контекст в демона для сборки.
+
+Compose при вызове docker compose up --build или docker compose build выполнит docker build с этим контекстом.
+
+Варианты и расширения:
+
+build:
+  context: .
+  dockerfile: Dockerfile.dev
+  args:
+    SOME_ARG: value
+
+
+— если нужно использовать нестандартный Dockerfile или передать build-args.
+
+Подводные камни:
+
+Если в контекст попадают большие каталоги (node_modules, .git, куча больших файлов), сборка станет долгой. Используйте .dockerignore.
+
+Если ваш Dockerfile находится в поддиректории — укажите context и dockerfile.
+
+Строка 5 — ports:
+
+Что это делает: открывает и пробрасывает порты с хоста в контейнер. Это список правил публикации портов.
+
+Замечание: это не то же самое, что EXPOSE в Dockerfile. EXPOSE — лишь декларация; ports фактически публикует порт на хосте.
+
+Строка 6 — - 6996:8000
+
+Формат: HOST_PORT:CONTAINER_PORT.
+
+6996 — порт на хост-машине (Windows у вас).
+
+8000 — порт внутри контейнера (приложение, слушающее 0.0.0.0:8000).
+
+Что это значит: запросы к localhost:6996 на вашей машине будут перенаправляться в контейнер на порт 8000.
+
+Дополнительные варианты:
+
+Чтобы привязать только к локальному интерфейсу: 127.0.0.1:6996:8000.
+
+Чтобы разрешить случайный свободный порт на хосте: - "6996" (но это не стандартный вариант, обычно пишут - "0:8000" или оставляют пустым).
+
+Важное замечание про безопасность: публикация порта делает сервис доступным извне. Если вы работаете локально и не хотите внешнего доступа, используйте 127.0.0.1:6996:8000.
+
+Частая ошибка: если приложение в контейнере слушает 127.0.0.1 внутри контейнера, проброс не сработает — приложение в контейнере должно слушать 0.0.0.0 чтобы принимать внешние соединения.
+
+Строка 7 — env_file:
+
+Что это делает: указывает на один или несколько файлов с переменными окружения, которые передаются в контейнер при запуске.
+
+Формат: список файлов, например:
+
+env_file:
+  - ./.env
+  - ./secrets.env
+
+
+Что записывать в этих файлах: строки в формате KEY=VALUE. Пример:
+
+DATABASE_URL=postgres://user:pass@db:5432/mydb
+SECRET_KEY=supersecret
+
+
+Ключевой момент: env_file загружает переменные в контейнер, но это не то же самое, что специальный .env для Compose-переменных замены.
+
+В Docker Compose есть специальный файл .env (без явного указания), который используется для подстановки переменных в docker-compose.yml (на этапе обработки файла). env_file — это отдельная директива, которая передаёт переменные внутрь контейнера.
+
+Подводные камни:
+
+Путь к файлу интерпретируется относительно местоположения docker-compose.yml.
+
+Значения из environment: в сервисе переопределяют те же ключи из env_file.
+
+Файл с чувствительными значениями — храните его безопасно; не коммитьте в git, если там секреты.
+
+Дополнительные полезные замечания / советы
+
+YAML чувствителен к отступам. У вас перестроение строк должно быть аккуратным — любой лишний пробел или неправильный отступ ломает парсер.
+
+Пересборка после правки: если вы меняете build: или Dockerfile — делайте docker compose build или docker compose up --build.
+
+Логи и ошибки импорта: если внутри контейнера ошибка Could not import module "app.,ain", значит либо Docker запускает неправильную команду (см. command, entrypoint, CMD в Dockerfile), либо в образ попал файл с опечаткой. Проверьте Dockerfile, command: в compose (его у вас нет — тогда используются CMD из Dockerfile) и содержимое образа.
+
+Чтобы увидеть точную команду, которую выполняет контейнер, используйте:
+
+docker compose ps
+docker logs <container_name>
+
+docker-compose down
+
+
+
+-setup postgres db + volumes
+
+version: "3"
+services: 
+  api:
+    build: .
+    ports: 
+      - 6996:8000
+    # env_file:
+    #   - ./.env
+    environment:
+      - DATABASE_HOSTNAME=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_PASSWORD=12345
+      - DATABASE_NAME=api
+      - DATABASE_USERNAME=postgres
+      - SECRET_KEY="abc"
+      - ALGORITHM="HS256"
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=s
+      - POSTGRES_DB=fastapi
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+
+volumes:
+  postgres_db:
+
+
+
+you can change localhost to postgre, bc docker has DNS inside.
+
+
+we want postgres to start first, so :
+version: "3"
+services: 
+  api:
+    build: .
+    depends_on:
+      - postgres
+    ports: 
+      - 6996:8000
+    # env_file:
+    #   - ./.env
+    environment:
+      - DATABASE_HOSTNAME=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_PASSWORD=12345
+      - DATABASE_NAME=api
+      - DATABASE_USERNAME=postgres
+      - SECRET_KEY="abc"
+      - ALGORITHM="HS256"
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=12345
+      - POSTGRES_DB=fastapi
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+
+volumes:
+  postgres_db:
+
+
+
+
+
+now in main.py  i have:
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .models import Base
+from .database import engine
+from .routers import posts, users, votes
+from . import auth
+
+# Base.metadata.create_all(bind = engine)
+
+app = FastAPI()
+
+origins = ["https://www.google.com", "https://youtube.com"]
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+app.include_router(posts.router)
+app.include_router(users.router)
+app.include_router(auth.router)
+app.include_router(votes.router)
+
+@app.get("/")
+def root():
+    return {"a":"g"}
+
+so when i n postman i do POST localhost:6996 i see {"a":"g"}
+but if i change now {"a":"g"} to smth else and try POST again i will not see the difference
+
+
+go to interactive mode, to bash system of the container:
+
+docker exec -it api-api-1 bash
+root@a0c3a7d7518d:/usr/src/app# ls
+Dockerfile  alembic.ini  docker-compose.yaml  nginx             venv
+alembic     app          gunicorn.service     requirements.txt
+root@a0c3a7d7518d:/usr/src/app# cd app
+root@a0c3a7d7518d:/usr/src/app/app# cat main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .models import Base
+from .database import engine
+from .routers import posts, users, votes
+from . import auth
+
+# Base.metadata.create_all(bind = engine)
+
+app = FastAPI()
+
+origins = ["https://www.google.com", "https://youtube.com"]
+app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+app.include_router(posts.router)
+app.include_router(users.router)
+app.include_router(auth.router)
+app.include_router(votes.router)
+
+@app.get("/")
+def root():
+    return {"a":"g"}root@a0c3a7d7518d:/usr/src/app/app#
+
+u see that changes where not saved. because when we created image. we didnt have this changes. image was created based on what we had earlier.
+
+so how do we get around this limitation? we use volume bind mount to bind folder on local machine with folder in container
+so we want app folder from conatiner to bind with app foder in vscode (were all files are /usr/src/app) so that when code is changed, it change also in docker
+root@a0c3a7d7518d:/usr/src/app/app# ls
+__init__.py  auth.py    database.py     main.py    routers
+__pycache__  config.py  hash_verify.py  models.py  schemas.py
+root@a0c3a7d7518d:/usr/src/app/app# cd ..
+root@a0c3a7d7518d:/usr/src/app# ls
+Dockerfile  alembic.ini  docker-compose.yaml  nginx             venv
+alembic     app          gunicorn.service     requirements.txt
+
+
+
+volumes:
+      - ./:/usr/src/app
+first u provide folder u wnt to bind with from local director, then folder from container
+if u want to bind specific folder , u can - ./app:/usr/src/app ; this will bind app local folder (only .py files) :
+  
+
+version: "3"
+services: 
+  api:
+    build: .
+    depends_on:
+      - postgres
+    ports: 
+      - 6996:8000
+    volumes:
+      - ./:/usr/src/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # env_file:
+    #   - ./.env
+    environment:
+      - DATABASE_HOSTNAME=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_PASSWORD=12345
+      - DATABASE_NAME=api
+      - DATABASE_USERNAME=postgres
+      - SECRET_KEY="abc"
+      - ALGORITHM="HS256"
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=12345
+      - POSTGRES_DB=fastapi
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+
+volumes:
+  postgres_db:
+
+
+to see changes u make we have to reload uvicorn. if you remove --reload, FastAPI won’t restart on changes.
+
+for extra security u can write - ./:/usr/src/app:ro  this means read only ; u cannot change files from docker container, only view them
+
+exit
+docker-compose down
+docker-compose up -d
+
+now when i run postman i get {"a": "gzssvxc"} . 
+
+
+
+
+Complete Summary: Fixing the Database Connection and Migration Issues
+What You Needed to Do From the Very Beginning
+Here's the complete journey of fixing your API project:
+1. Initial Problem: Database Connection Failed
+Your API couldn't connect to PostgreSQL because the hostname "postgres" wasn't resolvable - the PostgreSQL container wasn't running.
+2. Root Cause: PostgreSQL Version Incompatibility
+When you ran docker compose logs postgres, you discovered:
+
+PostgreSQL 18+ changed how it stores data (uses version-specific directories)
+Your old data volume was incompatible with the new structure
+PostgreSQL refused to start because of this mismatch
+
+3. Solution Steps You Took:
+Step A: Clean Up Old Data
+bashdocker compose down -v --remove-orphans
+Step B: Fix docker-compose.yml
+Changed the volume mount from:
+yamlvolumes:
+  - postgres_db:/var/lib/postgresql/data  # OLD - wrong for PG 18+
+to:
+yamlvolumes:
+  - postgres_db:/var/lib/postgresql  # NEW - correct parent directory
+Step C: Synchronize Database Names
+Made sure both services use the same database name:
+
+POSTGRES_DB=fastapi (in postgres service)
+DATABASE_NAME=fastapi (in api service)
+
+Step D: Restart Everything
+bashdocker compose up --build -d
+4. New Problem: Missing Tables
+After PostgreSQL started successfully, you got: relation "users" does not exist
+This happened because deleting the volume removed all tables.
+5. Final Solution: Run Database Migrations
+bashdocker compose exec api sh -c "alembic upgrade head"
+This created all necessary tables in the database.
+
+Detailed Code Explanation
+1. docker compose down -v --remove-orphans
+Line-by-line breakdown:
+bashdocker compose down -v --remove-orphans
+
+docker compose - Uses Docker Compose tool to manage multi-container applications
+down - Stops and removes all containers defined in docker-compose.yml
+-v - CRITICAL FLAG: Also removes named volumes declared in the volumes: section
+
+Without this, the old incompatible PostgreSQL data would persist
+This is why your database was failing - old PG 17 data couldn't be read by PG 18
+
+
+--remove-orphans - Removes containers not defined in current docker-compose.yml
+
+Cleans up any leftover containers from previous configurations
+
+
+
+What this does:
+
+Stops running containers (api, postgres)
+Removes stopped containers
+Deletes the postgres_db volume (containing old, incompatible data)
+Removes any orphaned containers
+
+Why you needed it: PostgreSQL 18 cannot use data directories created by PostgreSQL 17 or earlier without proper migration. The volume contained old-format data.
+
+2. Docker Compose Volume Configuration
+OLD (broken) configuration:
+yamlservices:
+  postgres:
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+Line-by-line explanation of why this failed:
+
+postgres_db - Named volume (Docker manages it)
+: - Separates volume name from container path
+/var/lib/postgresql/data - PROBLEM: In PostgreSQL 18+, this directory should contain version-specific subdirectories like 18/docker/
+
+Mounting directly to /data bypasses the new structure
+PostgreSQL 18 expects: /var/lib/postgresql/18/docker/
+Your mount gave it: /var/lib/postgresql/data/
+
+
+
+NEW (correct) configuration:
+yamlservices:
+  postgres:
+    volumes:
+      - postgres_db:/var/lib/postgresql
+Why this works:
+
+/var/lib/postgresql - Mount to the parent directory
+
+PostgreSQL 18 can now create its own subdirectory: /var/lib/postgresql/18/docker/
+Allows proper version management
+Enables pg_upgrade --link to work across versions
+
+
+
+Analogy:
+
+Old way: Giving someone a specific room in a house (they can't rearrange)
+New way: Giving them the whole house (they organize it themselves)
+
+
+3. Database Name Synchronization
+In docker-compose.yml:
+yamlservices:
+  postgres:
+    environment:
+      - POSTGRES_DB=fastapi  # Database NAME created by PostgreSQL
+      
+  api:
+    environment:
+      - DATABASE_NAME=fastapi  # Database NAME your app connects to
+Line-by-line explanation:
+
+POSTGRES_DB=fastapi
+
+Environment variable that PostgreSQL's entrypoint script reads
+Creates a database called "fastapi" when container first starts
+Equivalent to running: CREATE DATABASE fastapi;
+
+
+DATABASE_NAME=fastapi
+
+Environment variable YOUR application code reads (in app/database.py)
+Used to construct the connection string
+Your code probably does: f"postgresql://{user}:{password}@{host}/{DATABASE_NAME}"
+
+
+
+Why they must match:
+python# Your app tries to connect to:
+postgresql://postgres:12345@postgres:5432/fastapi
+
+# If POSTGRES_DB=api but DATABASE_NAME=fastapi:
+# PostgreSQL has database "api"
+# Your app looks for database "fastapi"
+# Result: database "fastapi" does not exist
+
+4. docker compose up --build -d
+bashdocker compose up --build -d
+Line-by-line:
+
+docker compose up - Creates and starts containers
+--build - Rebuilds images before starting
+
+Ensures any Dockerfile changes are applied
+Installs new requirements.txt dependencies
+Important after adding alembic to requirements.txt
+
+
+-d - Detached mode (runs in background)
+
+Without this, logs would fill your terminal
+Containers keep running after you close terminal
+
+
+
+What happens internally:
+
+Docker reads docker-compose.yml
+Builds api image from Dockerfile (installs Python packages)
+Pulls postgres:18 image if not already present
+Creates network api_default (both containers join this)
+Creates volume postgres_db (empty, since we deleted old one)
+Starts postgres container:
+
+Initializes new PostgreSQL 18 cluster in /var/lib/postgresql/18/docker/
+Creates database fastapi
+Runs scripts in /docker-entrypoint-initdb.d/ (if any)
+
+
+Starts api container:
+
+Runs: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+
+
+5. docker compose exec api sh -c "alembic upgrade head"
+bashdocker compose exec api sh -c "alembic upgrade head"
+Line-by-line breakdown:
+
+docker compose exec - Executes a command in a running container
+api - Service name from docker-compose.yml (targets api-api-1 container)
+sh -c - Runs the following string as a shell command
+
+sh - Shell interpreter (Bourne shell)
+-c - Flag meaning "execute command from string"
+
+
+"alembic upgrade head" - The command executed inside container
+
+alembic - Database migration tool (like Git for your schema)
+upgrade - Command to apply migrations (move schema forward)
+head - Target the latest migration revision
+
+
+
+What happens step-by-step:
+
+Docker finds running api-api-1 container
+Spawns new process inside that container (doesn't restart it)
+Runs sh -c "alembic upgrade head" which:
+
+python   # Alembic internally does:
+   
+   # 1. Read alembic.ini
+   config = Config("alembic.ini")
+   
+   # 2. Get database URL (from env variables inside container)
+   url = f"postgresql://{DATABASE_USERNAME}:{DATABASE_PASSWORD}@{DATABASE_HOSTNAME}:{DATABASE_PORT}/{DATABASE_NAME}"
+   # Resolves to: postgresql://postgres:12345@postgres:5432/fastapi
+   
+   # 3. Connect to PostgreSQL
+   engine = create_engine(url)
+   
+   # 4. Check migration history table
+   # SELECT version_num FROM alembic_version;
+   
+   # 5. Find unapplied migrations in alembic/versions/
+   # (you probably have something like: 001_initial_tables.py)
+   
+   # 6. Execute SQL from migration files:
+   CREATE TABLE users (
+       id SERIAL PRIMARY KEY,
+       email VARCHAR NOT NULL,
+       password VARCHAR NOT NULL,
+       created_at TIMESTAMP DEFAULT NOW()
+   );
+   # (plus any other tables in your models)
+   
+   # 7. Record applied migration:
+   INSERT INTO alembic_version (version_num) VALUES ('abc123...');
+
+Exits with status 0 (success) or error code
+
+Why run inside container?
+
+Inside container, hostname postgres resolves (they're on same Docker network)
+Outside container (on your Windows host), postgres doesn't exist
+Environment variables (DATABASE_HOSTNAME=postgres) are set correctly inside container
+
+
+6. Alternative: docker exec -it api-api-1 sh -c "python -c \"...\"
+If you didn't have Alembic, you would run:
+bashdocker exec -it api-api-1 sh -c "python -c \"from app import models, database; models.Base.metadata.create_all(bind=database.engine); print('tables created')\""
+Breaking down this complex command:
+bashdocker exec -it api-api-1 sh -c "python -c \"...\""
+
+docker exec - Run command in container (not using docker-compose here)
+-i - Keep STDIN open (interactive)
+-t - Allocate pseudo-TTY (terminal)
+api-api-1 - Exact container name (not service name)
+sh -c - Shell command executor
+python -c - Execute Python code from string (not file)
+
+-c - "command" flag (like sh -c)
+
+
+
+The Python code executed:
+pythonfrom app import models, database
+# Import your models (User class) and database engine
+
+models.Base.metadata.create_all(bind=database.engine)
+# SQLAlchemy magic:
+# - Base.metadata contains all table definitions
+# - create_all() generates CREATE TABLE statements
+# - bind=engine tells it WHERE to create tables
+
+print('tables created')
+What SQLAlchemy does internally:
+python# For each model class (e.g., User):
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    email = Column(String, nullable=False)
+    password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+# SQLAlchemy generates:
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR NOT NULL,
+    password VARCHAR NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+
+
+
+what i it was production and i could not delete volumes, could not loose the data
+
+Production-Safe Database Migration Strategy
+Excellent question! In production, you NEVER delete volumes. Here's how to handle PostgreSQL upgrades safely without data loss.
+
+Strategy Overview
+When you can't lose data, you have 3 main approaches:
+
+pg_upgrade (in-place upgrade) - Fastest, most complex
+pg_dump/pg_restore (export/import) - Safest, requires downtime
+Blue-Green Deployment (zero downtime) - Most professional
+Let me explain each in detail.
+
+Option 1: pg_upgrade (In-Place Upgrade)
+This upgrades PostgreSQL data files directly from version 17 → 18 without recreating them.
+
+Step-by-Step Commands
+1. Backup First (CRITICAL)
+bash
+# Create backup directory on host
+mkdir -p ./backups
+
+# Dump entire database
+docker compose exec postgres sh -c "pg_dumpall -U postgres" > ./backups/full_backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Verify backup is not empty
+ls -lh ./backups/
+Line-by-line explanation:
+
+pg_dumpall - PostgreSQL tool that exports ALL databases, roles, permissions
+-U postgres - Connect as user "postgres"
+Outputs SQL text (CREATE DATABASE, CREATE TABLE, INSERT...)
+> ./backups/file.sql - Redirect output to file on your host machine
+$(date +%Y%m%d_%H%M%S) - Timestamp (e.g., 20251203_142530)
+2. Stop Application (Prevent Writes)
+bash
+docker compose stop api
+Why: Ensures no new data is written during upgrade. If app keeps writing, data could be corrupted or lost.
+
+3. Create Temporary Container with Both PostgreSQL Versions
+Create special Dockerfile:
+
+dockerfile
+# Dockerfile.pg-upgrade
+FROM postgres:18
+
+# Install old version alongside new one
+RUN apt-get update && \
+    apt-get install -y postgresql-17 postgresql-contrib-17 && \
+    rm -rf /var/lib/apt/lists/*
+
+# pg_upgrade needs both versions installed
+Build it:
+
+bash
+docker build -f Dockerfile.pg-upgrade -t postgres-upgrade:18 .
+Explanation:
+
+FROM postgres:18 - Start with PostgreSQL 18 image (the target version)
+apt-get install postgresql-17 - Install old version 17 too
+pg_upgrade command needs both old and new binaries to work
+Think of it like needing both Word 2019 and Word 2021 to convert .doc → .docx
+4. Run pg_upgrade
+Modify docker-compose.yml temporarily:
+
+yaml
+services:
+  postgres:
+    image: postgres-upgrade:18  # Use our special image
+    command: bash  # Don't start PostgreSQL yet, just bash
+    stdin_open: true
+    tty: true
+    volumes:
+      - postgres_db:/var/lib/postgresql
+      - ./pg_upgrade_logs:/var/log/pg_upgrade  # Store upgrade logs
+Start container:
+
+bash
+docker compose up -d postgres
+Enter container and run upgrade:
+
+bash
+docker compose exec postgres bash
+
+# Inside container:
+
+# Initialize new PostgreSQL 18 cluster (empty)
+/usr/lib/postgresql/18/bin/initdb -D /var/lib/postgresql/18/data
+
+# Run pg_upgrade
+/usr/lib/postgresql/18/bin/pg_upgrade \
+  --old-datadir=/var/lib/postgresql/data \
+  --new-datadir=/var/lib/postgresql/18/data \
+  --old-bindir=/usr/lib/postgresql/17/bin \
+  --new-bindir=/usr/lib/postgresql/18/bin \
+  --check
+
+# If --check passes (no errors), run actual upgrade:
+/usr/lib/postgresql/18/bin/pg_upgrade \
+  --old-datadir=/var/lib/postgresql/data \
+  --new-datadir=/var/lib/postgresql/18/data \
+  --old-bindir=/usr/lib/postgresql/17/bin \
+  --new-bindir=/usr/lib/postgresql/18/bin \
+  --link  # Use hard links (fast, saves space)
+Line-by-line explanation of pg_upgrade:
+
+bash
+/usr/lib/postgresql/18/bin/pg_upgrade
+Path to pg_upgrade tool (comes with PostgreSQL 18)
+bash
+--old-datadir=/var/lib/postgresql/data
+Location of PostgreSQL 17 data files
+Contains: base/, global/, pg_wal/, etc.
+bash
+--new-datadir=/var/lib/postgresql/18/data
+Location where PostgreSQL 18 data will be created
+Must be empty directory (created by initdb)
+bash
+--old-bindir=/usr/lib/postgresql/17/bin
+--new-bindir=/usr/lib/postgresql/18/bin
+Paths to PostgreSQL executables (postgres, pg_ctl, etc.)
+pg_upgrade needs to run both old and new versions internally
+bash
+--check
+Dry-run mode: Verifies upgrade will work without actually doing it
+Checks for incompatibilities (removed features, data type changes)
+Always run this first
+bash
+--link
+Uses hard links instead of copying files
+Saves disk space: 100GB database → upgrade uses ~0GB extra space
+Much faster: No file copying
+Warning: Old data dir becomes unusable (files are "moved" not copied)
+What pg_upgrade does internally:
+
+Checks compatibility (--check)
+Verifies old version → new version is supported
+Checks for removed features (e.g., old data types)
+Copies system catalogs
+pg_database, pg_class, pg_attribute (metadata tables)
+Maps old OIDs → new OIDs
+Links/copies data files
+With --link: Creates hard links to data files
+Without --link: Copies all data files
+Updates control files
+pg_control (cluster metadata)
+WAL files, transaction logs
+Generates cleanup scripts
+delete_old_cluster.sh (removes old data)
+analyze_new_cluster.sh (updates statistics)
+5. Start PostgreSQL 18
+Update docker-compose.yml back to normal:
+
+yaml
+services:
+  postgres:
+    image: postgres:18  # Back to standard image
+    command: postgres  # Normal startup
+    volumes:
+      - postgres_db:/var/lib/postgresql
+Restart:
+
+bash
+docker compose down
+docker compose up -d postgres
+Verify:
+
+bash
+docker compose exec postgres psql -U postgres -d fastapi -c "SELECT version();"
+# Should show: PostgreSQL 18.1
+
+docker compose exec postgres psql -U postgres -d fastapi -c "\dt"
+# Should show all your tables (users, etc.)
+
+docker compose exec postgres psql -U postgres -d fastapi -c "SELECT COUNT(*) FROM users;"
+# Should show count of existing users (data preserved!)
+6. Test and Restart Application
+bash
+docker compose up -d api
+
+# Test endpoints
+curl -X POST http://localhost:6996/users/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"securepass123"}'
+Option 2: pg_dump/pg_restore (Export/Import)
+Simpler but requires downtime. Exports all data as SQL, then imports into new database.
+
+Step-by-Step Commands
+1. Backup Current Database
+bash
+mkdir -p ./backups
+
+# Dump all databases
+docker compose exec postgres sh -c "pg_dumpall -U postgres" > ./backups/full_backup.sql
+
+# Or dump specific database with custom format (faster restore)
+docker compose exec postgres sh -c "pg_dump -U postgres -Fc -d fastapi" > ./backups/fastapi_backup.dump
+Format options:
+
+-Fc - Custom format (compressed, allows parallel restore)
+-Fp - Plain text SQL (default, human-readable)
+-Fd - Directory format (parallel dump/restore)
+2. Stop Old Services
+bash
+docker compose down
+3. Update docker-compose.yml for PostgreSQL 18
+yaml
+services:
+  postgres:
+    image: postgres:18  # Changed from postgres:17
+    volumes:
+      - postgres_db_new:/var/lib/postgresql  # NEW volume
+    environment:
+      - POSTGRES_PASSWORD=12345
+      - POSTGRES_DB=fastapi
+Important: Use a new volume name (postgres_db_new) to preserve old data.
+
+4. Start New PostgreSQL 18
+bash
+docker compose up -d postgres
+
+# Wait for it to be ready
+docker compose logs postgres --follow
+# Wait for: "database system is ready to accept connections"
+5. Restore Data
+For plain SQL dump:
+
+bash
+docker compose exec -T postgres sh -c "psql -U postgres" < ./backups/full_backup.sql
+For custom format dump:
+
+bash
+cat ./backups/fastapi_backup.dump | docker compose exec -T postgres sh -c "pg_restore -U postgres -d fastapi --no-owner --no-privileges"
+Line-by-line explanation:
+
+bash
+cat ./backups/fastapi_backup.dump | docker compose exec -T postgres sh -c "..."
+
+
+
+
+docker login
+
+now go to docker hub and create repository. and copy the name (mine is "docker image tag api-api stezupan/fastapi")
+now in terminal write docker image tag api-api stezupan/fastapi to change docker image name to the name of your repository
+docker image ls   will show u that the copy of image with repo name was created
+docker push stezupan/fastapi
+
+if u have acces denied then   docker logout ;  docker login  ; docker push stezupan/fastapi
+
+
+
+
+
+- docker prosution
+
+docker-compose down
+
+rename docker-compose to docker-compose.production  and create docker-compose.develop
+remove bind mount an rename env variables:
+
+version: "3"
+services: 
+  api:
+    image: stezupan/fastapi
+    depends_on:
+      - postgres
+    ports: 
+      - 6996:8000
+    #command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    # env_file:
+    #   - ./.env
+    environment:
+      - DATABASE_HOSTNAME=${DATABASE_HOSTNAME}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USERNAME=${DATABASE_HOSTNAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=${DATABASE_NAME}
+    volumes:
+      - postgres_db:/var/lib/postgresql
+
+volumes:
+  postgres_db:
+
+
+
+
+✔ When a bind mount is useful
+1. Live-editing code without rebuilding the image
+
+If you're writing Python/FastAPI/Node/etc, you want to:
+
+change your code
+
+refresh page
+
+see changes instantly
+
+NOT rebuild the image every time
+
+Bind mount gives you exactly that:
+
+volumes:
+  - ./app:/usr/src/app
+
+
+You edit ./app/main.py → it instantly updates inside the container.
+
+This is the entire reason bind mounts exist for app developers.
+
+✔ When a bind mount is NOT useful
+Production
+
+In production you want:
+
+determinism
+
+isolation
+
+no accidental edits
+
+no dependency on the host filesystem
+
+reproducible deployments
+
+Bind mount gives you the opposite, so you avoid it.
+
+✔ Why not just use “docker build” every time?
+
+Because rebuilding constantly is annoying and slow.
+
+With bind mounts:
+
+You build the image once
+
+The container uses the host's code directly
+
+You restart the service and your changes appear
+
+This saves tons of time.
+
+✔ What if someone else runs the container?
+
+They don’t need your bind mount.
+They get the image with code baked into it.
+They use named volumes for data (DB, uploads, etc.).
+
+Bind mounts = local dev shortcut.
+
+🔥 Summary (super short)
+
+You use bind mounts because:
+
+→ You want to develop quickly without rebuilding images.
+That’s it. No other real benefit.
+
+If you don’t need that, you don’t need bind mounts
+
+
+if u want to run such custom docker compose file : docker-compose -f docker-compose.develop.yaml up -d   or docker-compose -f docker-compose.production.yaml up -d
+
+
+
+
+
+in production env we dont wanna build image. instead, when u r done developing u push the image to docker hub . and then in a production env me pull this image from docker hub
+thats why in prod docker compose we dont have "build: ." but "image : stezupan/fastapi"
+
+ChatGPT said:
+
+build: . means:
+
+“Build a Docker image from the Dockerfile located in the current directory.”
+
+That’s it. Very literal.
+
+🔍 Breakdown
+
+build: .
+
+the . is the build context → the current folder
+
+Docker looks for a Dockerfile inside that folder
+
+it sends the entire folder to the Docker daemon
+
+the Docker daemon builds an image using the steps in the Dockerfile
+
+the resulting image is used for the api container
+
+
+
+In production, image: means “use a prebuilt Docker image instead of building it from source.”
+Docker Compose will:
+
+pull the image from a registry (Docker Hub, GitHub Container Registry, etc.)
+
+run a container from that exact image
+
+not rebuild anything
+
+api:
+  image: stezupan/fastapi
+This tells Docker:
+
+“Go to Docker Hub, download stezupan/fastapi:latest, and run it.”
+
+
+
+
+now commit:
+Add everything:
+
+git add .
+
+
+Or add specific files:
+
+git add app/main.py
+
+
+
+git commit -m "a"
+
+
+If you're on main:
+
+git push origin main
+
+
+If you're on another branch:
+
+git push origin my-branch-name
+
+
+if u get error: fatal: The current branch main has no upstream branch.
+Fix it:
+
+css
+Copy code
+git push --set-upstream origin main
+
+
+
+If your push is rejected (because GitHub has newer commits)
+
+Git will tell you to pull first:
+
+git pull origin main
+
+
+Resolve conflicts if needed, then push again:
+
+git push
+
+
+
+
+
+
+1. Why branches exist
+
+To isolate changes so your work doesn’t break the main code.
+
+To experiment safely without affecting production-ready code.
+
+To allow multiple people to work simultaneously without conflicts.
+
+2. When to change or create a branch
+
+New feature: create a branch like feature/login-page.
+
+Bug fix: create a branch like bugfix/fix-login-error.
+
+Experimenting or refactoring: create a temporary branch so main stays stable.
+
+3. Main vs other branches
+
+main (or master) is usually production-ready code. You rarely commit directly here.
+
+Other branches are working branches. When your changes are ready, you merge them into main (often via a Pull Request if using GitHub).
+
+4. How to switch branches
+
+See available branches:
+
+git branch
+
+
+Switch to an existing branch:
+
+git checkout branch-name
+
+
+Create a new branch and switch to it:
+
+git checkout -b new-branch-name
+
+
+💡 Rule of thumb: never commit directly to main unless it’s a tiny personal project. Always use a branch for any change, then merge later.
+
+
+
+
+
+
+1. Check your current branch
+git status
+git branch
+
+
+Where: terminal inside your repo.
+
+What it does:
+
+git status – shows modified files, staged files, current branch.
+
+git branch – lists all branches; highlights the current one.
+
+Why: to know where you are before making changes.
+
+2. Create a new branch
+
+Before creating a feature branch
+
+git checkout main
+git pull
+
+
+Updates your local main with the latest changes from GitHub.
+
+Ensures your new feature branch starts from the current state of production-ready code.
+git checkout -b feature/login-page
+
+
+
+Where: terminal inside repo.
+
+What it does:
+
+-b creates a new branch and immediately switches to it.
+
+Branch name feature/login-page is descriptive (good practice).
+
+Why: you isolate your work from main. Your changes won’t break the production-ready branch.
+
+3. Work on files
+
+Edit your code, add new files, etc.
+
+No Git command here yet; just do your coding.
+
+4. See changed files
+git status
+
+
+Where: terminal.
+
+What it does: shows which files are modified, untracked, or staged.
+
+Why: to verify what you changed before committing.
+
+5. Stage changes
+git add .
+
+
+Where: terminal.
+
+What it does: stages all changed files to be committed.
+
+Why: Git only commits staged files. You must stage changes first.
+
+Alternative: git add file_name to stage a specific file.
+
+6. Commit changes
+git commit -m "Add login page feature"
+
+
+Where: terminal.
+
+What it does: saves your staged changes as a snapshot with a message.
+
+Why: commits are the units of change in Git. Clear messages explain what changed.
+
+7. Push branch to GitHub
+git push -u origin feature/login-page
+
+
+Where: terminal.
+
+What it does:
+
+Pushes your branch to the remote origin (GitHub).
+
+-u sets upstream so future git push or git pull works automatically.
+
+Why: allows others to see your branch or create a Pull Request.
+
+8. Merge back to main (after review)
+
+Before merging your feature back to main, also pull again:
+
+git checkout main
+git pull
+
+
+In case someone else pushed new changes while you were working.
+
+This reduces merge conflicts.
+
+
+On GitHub: open a Pull Request from feature/login-page → main.
+
+Or locally:
+
+git checkout main
+git pull
+git merge feature/login-page
+git push
+
+
+What it does:
+
+Switches to main.
+
+Pulls latest changes from remote.
+
+Merges your feature branch.
+
+Pushes merged main to GitHub.
+
+Why: integrates your new feature into the production-ready code.
+
+You run git checkout main → now your local branch is main.
+
+You run git pull → Git looks at the remote tracking branch for main (usually origin/main) and updates your local main with whatever is there.
+
+It’s not pulling your feature branch.
+
+It’s pulling whatever is on GitHub in main.
+
+After git pull, your local main is fully up to date with everyone else’s changes on GitHub.
+
+Then you merge your feature branch: git merge feature/login-page.
+
+Now the new changes from your feature branch are applied to the updated local main.
+
+Finally, git push updates remote main with your merge.
+
+Key concept: git pull always updates your current branch from its corresponding remote branch. Your feature branch is separate until you merge it.
+
+9. Delete old branch (optional)
+git branch -d feature/login-page
+git push origin --delete feature/login-page
+
+
+Deletes the branch locally and remotely.
+
+Why: keeps your repo clean after the feature is merged.
+
+
+
+
+
+
+
+
+
+
+
+
