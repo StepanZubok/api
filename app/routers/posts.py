@@ -19,11 +19,11 @@ def get_posts(db : Session = Depends(database.get_db), current_user_id : int = D
 def get_post_id(id : int, db : Session = Depends(database.get_db), current_user_id : int = Depends(auth.get_current_user_id)):
     # post = db.query(models.PostsTable).filter(models.PostsTable.id == id).first()
     post = db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.PostsTable.id == models.Vote.post_id, isouter=True).group_by(models.PostsTable.id).filter(models.PostsTable.id == id).first()
-    p, v = post
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     # if post.account_id != current_user_id:
     #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    p, v = post
     return {"post" : p, "vote" : v}
 
 @router.post("/",status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
@@ -60,3 +60,5 @@ def update_post(id : int, post : schemas.PostUpdate, db : Session=Depends(databa
     db.commit()
     db.refresh(update_post)
     return update_post
+
+

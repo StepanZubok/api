@@ -66,4 +66,4 @@ class TokenData(BaseModel):
 
 class VoteBase(BaseModel):
     post_id : int
-    vote_option : conint(le=1)
+    vote_option : conint(le=1) #constrained int
