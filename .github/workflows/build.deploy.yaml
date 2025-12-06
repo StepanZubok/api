@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   job1:
     env:
-      DATBASE_HOSTNAME: localhost
+      DATABASE_HOSTNAME: localhost
       DATABASE_PORT: 5432
       DATABASE_PASSWORD: 12345
       DATABASE_NAME: fastapi
