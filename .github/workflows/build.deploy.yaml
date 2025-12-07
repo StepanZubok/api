@@ -47,12 +47,11 @@ jobs:
         with:
           host: 100.76.67.39
           username: stefan
+          key: b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABBVuvyZ8jwCY4rG/4XJ3RR7AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIOHNwEdP0F/oAfi54uCF3w+mNJhudhGyDw/5THKhkH6+AAAAoIFh37CSfFV72lNeWjbmjWmJgJldTbbbaE+fUiHxu2342BnexZ1HCtLdTwcRexsO9jIWmDT6CuuH/J45JrySvJb4CdnNJzM8MCpoWeSvSZT0xtQ0h2asbPweBgTMS0mnO0b30J6TuwE9XAHUF4OS6lNiEB3WxzVIYPR+Gv4DT6IaE2c+H83KsmN90BTsYd7/nADGFCGYW0D3Hz4ci5ZBdJI=
+          passphrase: s
           password: s
           port : 6996
           script: |
             cd app/api
             git pull 
             echo s | sudo -S systemctl restart api 
-
-
-
