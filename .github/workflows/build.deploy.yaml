@@ -53,4 +53,4 @@ jobs:
           script: |
             cd app/api
             git pull 
-            sudo systemctl restart api 
+            echo s | sudo -S systemctl restart api 
