@@ -19,4 +19,4 @@ app.include_router(votes.router)
 
 @app.get("/")
 def root():
-    return {"a":"a"}
+    return {"message":"ubuntu"}
