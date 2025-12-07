@@ -2,10 +2,6 @@ name: Build and deploy code
 
 on: [push, pull_request]   
 
-name: Build and deploy code
-
-on: [push, pull_request]   
-
 jobs:
   build:
     env:
