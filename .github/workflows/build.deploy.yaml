@@ -38,22 +38,19 @@ jobs:
         with:
           authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: 100.76.67.39
-          username: stefan
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 6996
-          script: |
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add SSH known hosts
+        run: |
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh -p 6996 stefan@100.76.67.39 << 'EOF'
             cd app/api
-            git pull 
+            git pull
             echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart api
+          EOF
