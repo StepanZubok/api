@@ -42,7 +42,7 @@ jobs:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.AUTH_KEY2 }}
+          authkey: ${{ secrets.AUTH_KEY }}
 
       - name: Setup SSH
         env:
