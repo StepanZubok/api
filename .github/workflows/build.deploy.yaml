@@ -1,7 +1,5 @@
 name: Build and deploy code
-
 on: [push, pull_request]   
-
 jobs:
   build:
     env:
@@ -17,18 +15,14 @@ jobs:
     steps:
       - name: pulling git repo
         uses: actions/checkout@v2
-
       - name: install python
         uses: actions/setup-python@v2
         with:
           python-version: "3.11"
-
       - name: update pip
         run: python -m pip install --upgrade pip
-
       - name: install all dependencies
         run: pip install -r requirements.txt
-      
       - name: pytests
         run: |
           pip install pytest
@@ -42,8 +36,36 @@ jobs:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.AUTH_KEY }}  # Changed from AUTH_KEY2
+          authkey: ${{ secrets.AUTH_KEY }}
 
+      - name: Debug SSH key
+        run: |
+          echo "Creating SSH key file..."
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          echo "SSH key file info:"
+          ls -la ~/.ssh/id_rsa
+          echo ""
+          
+          echo "First line of key:"
+          head -n 1 ~/.ssh/id_rsa
+          echo ""
+          
+          echo "Last line of key:"
+          tail -n 1 ~/.ssh/id_rsa
+          echo ""
+          
+          echo "Key validation:"
+          ssh-keygen -y -f ~/.ssh/id_rsa -P "${{ secrets.SSH_PASSPHRASE }}" > /dev/null && echo "✓ Key is valid!" || echo "✗ Key is invalid or passphrase is wrong"
+
+      - name: Test SSH connection
+        run: |
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
+          sshpass -p "${{ secrets.SSH_PASSPHRASE }}" ssh -v -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "echo 'Connection successful!'" 2>&1 || true
+        continue-on-error: true
+      
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
