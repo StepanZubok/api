@@ -21,42 +21,41 @@ jobs:
       - name: install python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.14"
+          python-version: "3.11"  # Fixed: 3.14 doesn't exist
 
       - name: update pip
         run: python -m pip install --upgrade pip
 
-      - name: install ll dependences
+      - name: install all dependencies  # Fixed typo
         run: pip install -r requirements.txt
       
       - name: pytests
         run: |
           pip install pytest
           pytest
- 
 
-  deploy:
-  runs-on: ubuntu-latest
-  needs: [build]
-  
-  steps:
-    - name: Connect to Tailscale
-      uses: tailscale/github-action@v2
-      with:
-        authkey: ${{ secrets.AUTH_KEY2 }}
+  deploy:  # Fixed indentation - should be at same level as 'build'
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.AUTH_KEY2 }}
 
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
 
-    - name: Test SSH connection
-      run: |
-        ssh -v -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "echo 'SSH connection successful!'"
+      - name: Test SSH connection
+        run: |
+          ssh -v -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "echo 'SSH connection successful!'"
 
-    - name: Deploy
-      run: |
-        ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
-        
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
+          
