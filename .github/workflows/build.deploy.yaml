@@ -43,11 +43,11 @@ jobs:
           sudo apt-get update && sudo apt-get install -y expect openssh-client
 
           mkdir -p ~/.ssh
-          # safer write (preserve newlines)
+          # write private key reliably (preserve newlines)
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # derive public key and show fingerprint so you can compare with server's authorized_keys
+          # derive public key and fingerprint for comparison with server's authorized_keys
           ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub || true
           echo "=== local key fingerprint ==="
           ssh-keygen -lf ~/.ssh/id_rsa.pub || true
@@ -55,21 +55,35 @@ jobs:
           # known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
 
-          # start agent and add key (expect to feed passphrase)
-          eval $(ssh-agent -s)
-          expect <<'EOF'
-            set timeout 10
-            spawn ssh-add ~/.ssh/id_rsa
-            expect "Enter passphrase"
-            send "$env(SSH_PASSPHRASE)\r"
-            expect eof
-          EOF
+          # start agent
+          eval "$(ssh-agent -s)"
+
+          # If passphrase is empty, add key directly; otherwise use expect with absolute path
+          if [ -z "$SSH_PASSPHRASE" ]; then
+            echo "No passphrase provided — adding key directly"
+            ssh-add ~/.ssh/id_rsa || true
+          else
+            echo "Passphrase provided — using expect to add key"
+            expect <<'EXPECT_SCRIPT'
+              set timeout 20
+              # use env HOME to build absolute path (spawn does not expand ~)
+              set keyfile "$env(HOME)/.ssh/id_rsa"
+              spawn ssh-add $keyfile
+              expect {
+                -re "Enter passphrase" {
+                  send "$env(SSH_PASSPHRASE)\r"
+                  exp_continue
+                }
+                eof
+              }
+            EXPECT_SCRIPT
+          fi
 
           echo "=== ssh-agent keys ==="
           ssh-add -l || true
 
-          # Try a verbose connection to show what the client offers and server replies
           echo "=== trying verbose SSH (will print why auth failed) ==="
+          # force use of this key only and get detailed debug
           ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o BatchMode=yes -p 6996 -vvv stefan@100.76.67.39 "echo CONNECTED" || true
 
           # If publickey worked, do the real deploy (non-verbose)
@@ -78,4 +92,3 @@ jobs:
         env:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
-
