@@ -46,7 +46,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           oauth-client-id: kyzesRyxsK11CNTRL
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }} tskey-client-kyzesRyxsK11CNTRL-FCahvEupuk1VdtdFqPeSm1rAA4cisdk8L
+          oauth-secret: tskey-client-kyzesRyxsK11CNTRL-FCahvEupuk1VdtdFqPeSm1rAA4cisdk8L
           tags: tag:ci
 
       - name: deploy to ubuntu
@@ -54,7 +54,7 @@ jobs:
         with:
           host: 100.76.67.39
           username: stefan
-          key:${{ secrets.SSH_PRIVATE_KEY }} -----BEGIN OPENSSH PRIVATE KEY-----b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABBVuvyZ8jwCY4rG/4XJ3RR7AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIOHNwEdP0F/oAfi54uCF3w+mNJhudhGyDw/5THKhkH6+AAAAoIFh37CSfFV72lNeWjbmjWmJgJldTbbbaE+fUiHxu2342BnexZ1HCtLdTwcRexsO9jIWmDT6CuuH/J45JrySvJb4CdnNJzM8MCpoWeSvSZT0xtQ0h2asbPweBgTMS0mnO0b30J6TuwE9XAHUF4OS6lNiEB3WxzVIYPR+Gv4DT6IaE2c+H83KsmN90BTsYd7/nADGFCGYW0D3Hz4ci5ZBdJI=-----END OPENSSH PRIVATE KEY-----
+          key: -----BEGIN OPENSSH PRIVATE KEY-----b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABBVuvyZ8jwCY4rG/4XJ3RR7AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIOHNwEdP0F/oAfi54uCF3w+mNJhudhGyDw/5THKhkH6+AAAAoIFh37CSfFV72lNeWjbmjWmJgJldTbbbaE+fUiHxu2342BnexZ1HCtLdTwcRexsO9jIWmDT6CuuH/J45JrySvJb4CdnNJzM8MCpoWeSvSZT0xtQ0h2asbPweBgTMS0mnO0b30J6TuwE9XAHUF4OS6lNiEB3WxzVIYPR+Gv4DT6IaE2c+H83KsmN90BTsYd7/nADGFCGYW0D3Hz4ci5ZBdJI=-----END OPENSSH PRIVATE KEY-----
           passphrase: s
           port: 6996
           script: |
