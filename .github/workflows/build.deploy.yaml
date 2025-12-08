@@ -38,8 +38,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [build]
-    environment:
-      name: production
+    # environment:
+    #   name: production
     
     steps:
       - name: Connect to Tailscale
@@ -48,7 +48,7 @@ jobs:
           # oauth-client-id: kGN1BJ6WmZ11CNTRL
           # oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           # tags: tag:ci
-          authkey: ${{ secrets.AUTH_KEY }}
+          authkey: ${{ secrets.AUTH_KEY2 }}
 
       - name: deploy to ubuntu
         uses: appleboy/ssh-action@master
@@ -62,6 +62,3 @@ jobs:
             cd app/api
             git pull 
             echo ${{ secrets.SUDO_PASSWORD }} | sudo -S systemctl restart api
-
-
-
