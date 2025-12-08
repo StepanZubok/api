@@ -34,27 +34,38 @@ jobs:
           pip install pytest
           pytest
 
-  deploy:  # Fixed indentation - should be at same level as 'build'
-    runs-on: ubuntu-latest
-    needs: [build]
-    
+  deploy:
+  needs: [build]
+  
     steps:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.AUTH_KEY }}
+          authkey: ${{ secrets.AUTH_KEY2 }}
 
       - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Test SSH connection
-        run: |
-          ssh -v -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "echo 'SSH connection successful!'"
+          
+          # Start ssh-agent
+          eval $(ssh-agent -s)
+          
+          # Add key with passphrase using expect
+          sudo apt-get update && sudo apt-get install -y expect
+          expect << EOF
+          spawn ssh-add ~/.ssh/id_rsa
+          expect "Enter passphrase"
+          send "$SSH_PASSPHRASE\r"
+          expect eof
+          EOF
 
       - name: Deploy
         run: |
-          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
+          ssh -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
+          
