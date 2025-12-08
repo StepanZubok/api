@@ -38,30 +38,44 @@ jobs:
         with:
           authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Setup SSH and Deploy
+      - name: Setup SSH and Deploy (debug)
         run: |
-          sudo apt-get update && sudo apt-get install -y expect
-          
+          sudo apt-get update && sudo apt-get install -y expect openssh-client
+
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          # safer write (preserve newlines)
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+
+          # derive public key and show fingerprint so you can compare with server's authorized_keys
+          ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub || true
+          echo "=== local key fingerprint ==="
+          ssh-keygen -lf ~/.ssh/id_rsa.pub || true
+
+          # known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
 
+          # start agent and add key (expect to feed passphrase)
           eval $(ssh-agent -s)
-
-          expect << 'EOF'
+          expect <<'EOF'
             set timeout 10
-            spawn ssh-add /home/runner/.ssh/id_rsa
+            spawn ssh-add ~/.ssh/id_rsa
             expect "Enter passphrase"
             send "$env(SSH_PASSPHRASE)\r"
             expect eof
           EOF
 
-          ssh-add -l
+          echo "=== ssh-agent keys ==="
+          ssh-add -l || true
 
-          ssh -o PreferredAuthentications=publickey \
-              -p 6996 stefan@100.76.67.39 \
-              "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart api"
+          # Try a verbose connection to show what the client offers and server replies
+          echo "=== trying verbose SSH (will print why auth failed) ==="
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o BatchMode=yes -p 6996 -vvv stefan@100.76.67.39 "echo CONNECTED" || true
+
+          # If publickey worked, do the real deploy (non-verbose)
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -p 6996 stefan@100.76.67.39 \
+            "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart api"
         env:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+
