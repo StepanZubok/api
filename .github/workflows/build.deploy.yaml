@@ -51,9 +51,10 @@ jobs:
           # Add to known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           
-          # Start ssh-agent and add key with passphrase
+          # Start ssh-agent
           eval $(ssh-agent -s)
           
+          # Add key with passphrase
           expect << 'EXPECT_SCRIPT'
           set timeout 10
           spawn ssh-add /home/runner/.ssh/id_rsa
@@ -65,8 +66,8 @@ jobs:
           # Verify key was added
           ssh-add -l
           
-          # Deploy
-          ssh -p 6996 stefan@100.76.67.39 << 'SSH_EOF'
+          # Deploy - use the agent socket directly
+          SSH_AUTH_SOCK=$SSH_AUTH_SOCK ssh -o PreferredAuthentications=publickey -p 6996 stefan@100.76.67.39 << 'SSH_EOF'
             cd app/api
             git pull
             echo "$SUDO_PASSWORD" | sudo -S systemctl restart api
