@@ -69,29 +69,28 @@ jobs:
           else
             echo "Using expect to provide passphrase to ssh-add"
             expect <<'EXPECT_SCRIPT'
-      set timeout 20
-      set keyfile "$env(HOME)/.ssh/id_rsa"
-      spawn ssh-add $keyfile
-      expect {
-        -re "Enter passphrase" {
-          send "$env(SSH_PASSPHRASE)\r"
-          exp_continue
-        }
-        eof
-      }
-      EXPECT_SCRIPT
-          fi
+            set timeout 20
+            set keyfile "$env(HOME)/.ssh/id_rsa"
+            spawn ssh-add $keyfile
+            expect {
+              -re "Enter passphrase" {
+                send "$env(SSH_PASSPHRASE)\r"
+                exp_continue
+              }
+              eof
+            }
+            EXPECT_SCRIPT
+                fi
 
-          echo "=== ssh-agent identities (ssh-add -l) ==="
-          ssh-add -l || true
+                echo "=== ssh-agent identities (ssh-add -l) ==="
+                ssh-add -l || true
 
-          echo "=== verbose ssh attempt (shows offered keys / server response) ==="
-          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o BatchMode=yes -p 6996 -vvv stefan@100.76.67.39 "echo CONNECTED" || true
+                echo "=== verbose ssh attempt (shows offered keys / server response) ==="
+                ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o BatchMode=yes -p 6996 -vvv stefan@100.76.67.39 "echo CONNECTED" || true
 
-          echo "=== final deploy (if auth succeeded) ==="
-          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -p 6996 stefan@100.76.67.39 \
-            "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart api" || true
-        env:
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
-          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
-          
+                echo "=== final deploy (if auth succeeded) ==="
+                ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -p 6996 stefan@100.76.67.39 \
+                  "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart api" || true
+              env:
+                SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+                SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
