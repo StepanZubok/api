@@ -35,7 +35,8 @@ jobs:
           pytest
 
   deploy:
-  needs: [build]
+    runs-on: ubuntu-latest
+    needs: [build]
   
     steps:
       - name: Connect to Tailscale
