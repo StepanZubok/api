@@ -36,33 +36,27 @@ jobs:
  
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: [build]
-    # environment:
-    #   name: production
-    
-    steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          # oauth-client-id: kGN1BJ6WmZ11CNTRL
-          # oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          # tags: tag:ci
-          authkey: ${{ secrets.AUTH_KEY }}
+  runs-on: ubuntu-latest
+  needs: [build]
+  
+  steps:
+    - name: Connect to Tailscale
+      uses: tailscale/github-action@v2
+      with:
+        authkey: ${{ secrets.AUTH_KEY2 }}
 
-      - name: deploy to ubuntu
-        uses: appleboy/ssh-action@master
-        with:
-          host: 100.76.67.39
-          username: stefan
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 6996
-          script: |
-            cd app/api
-            git pull 
-            echo ${{ secrets.SUDO_PASSWORD }} | sudo -S systemctl restart api
-      - name: Debug SSH key
-        run: |
-          echo "SSH key length: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -c)"
-          echo "SSH key first line: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | head -n 1)"
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
+
+    - name: Test SSH connection
+      run: |
+        ssh -v -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "echo 'SSH connection successful!'"
+
+    - name: Deploy
+      run: |
+        ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
+        
