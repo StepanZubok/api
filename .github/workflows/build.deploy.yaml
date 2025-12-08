@@ -62,3 +62,7 @@ jobs:
             cd app/api
             git pull 
             echo ${{ secrets.SUDO_PASSWORD }} | sudo -S systemctl restart api
+      - name: Debug SSH key
+        run: |
+          echo "SSH key length: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | wc -c)"
+          echo "SSH key first line: $(echo '${{ secrets.SSH_PRIVATE_KEY }}' | head -n 1)"
