@@ -40,38 +40,24 @@ jobs:
 
       - name: Setup SSH and Deploy
         run: |
-          # Install expect
           sudo apt-get update && sudo apt-get install -y expect
           
-          # Setup SSH key
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          # Add to known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           
-          # Start ssh-agent
-          eval $(ssh-agent -s)
-          
-          # Add key with passphrase
-          expect << 'EXPECT_SCRIPT'
+          # Start agent, add key, and deploy in one shell
+          eval $(ssh-agent -s) && \
+          expect << 'EXPECT_SCRIPT' && \
           set timeout 10
           spawn ssh-add /home/runner/.ssh/id_rsa
           expect "Enter passphrase"
           send "$env(SSH_PASSPHRASE)\r"
           expect eof
           EXPECT_SCRIPT
-          
-          # Verify key was added
-          ssh-add -l
-          
-          # Deploy - use the agent socket directly
-          SSH_AUTH_SOCK=$SSH_AUTH_SOCK ssh -o PreferredAuthentications=publickey -p 6996 stefan@100.76.67.39 << 'SSH_EOF'
-            cd app/api
-            git pull
-            echo "$SUDO_PASSWORD" | sudo -S systemctl restart api
-          SSH_EOF
+          ssh-add -l && \
+          ssh -o PreferredAuthentications=publickey -p 6996 stefan@100.76.67.39 'cd app/api && git pull && echo "'"$SUDO_PASSWORD"'" | sudo -S systemctl restart api'
         env:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
