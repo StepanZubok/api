@@ -38,10 +38,10 @@ jobs:
         with:
           authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Setup SSH with passphrase
+      - name: Setup SSH and Deploy
         run: |
-          # Install sshpass
-          sudo apt-get update && sudo apt-get install -y sshpass expect
+          # Install expect
+          sudo apt-get update && sudo apt-get install -y expect
           
           # Setup SSH key
           mkdir -p ~/.ssh
@@ -51,10 +51,9 @@ jobs:
           # Add to known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           
-          # Start ssh-agent
+          # Start ssh-agent and add key with passphrase
           eval $(ssh-agent -s)
           
-          # Add key with passphrase using expect
           expect << 'EXPECT_SCRIPT'
           set timeout 10
           spawn ssh-add /home/runner/.ssh/id_rsa
@@ -62,13 +61,16 @@ jobs:
           send "$env(SSH_PASSPHRASE)\r"
           expect eof
           EXPECT_SCRIPT
-        env:
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
-
-      - name: Deploy
-        run: |
-          ssh -p 6996 stefan@100.76.67.39 << 'EOF'
+          
+          # Verify key was added
+          ssh-add -l
+          
+          # Deploy
+          ssh -p 6996 stefan@100.76.67.39 << 'SSH_EOF'
             cd app/api
             git pull
-            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart api
-          EOF
+            echo "$SUDO_PASSWORD" | sudo -S systemctl restart api
+          SSH_EOF
+        env:
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
