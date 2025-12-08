@@ -46,18 +46,22 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          
-          # Start agent, add key, and deploy in one shell
-          eval $(ssh-agent -s) && \
-          expect << 'EXPECT_SCRIPT' && \
-          set timeout 10
-          spawn ssh-add /home/runner/.ssh/id_rsa
-          expect "Enter passphrase"
-          send "$env(SSH_PASSPHRASE)\r"
-          expect eof
-          EXPECT_SCRIPT
-          ssh-add -l && \
-          ssh -o PreferredAuthentications=publickey -p 6996 stefan@100.76.67.39 'cd app/api && git pull && echo "'"$SUDO_PASSWORD"'" | sudo -S systemctl restart api'
+
+          eval $(ssh-agent -s)
+
+          expect << 'EOF'
+            set timeout 10
+            spawn ssh-add /home/runner/.ssh/id_rsa
+            expect "Enter passphrase"
+            send "$env(SSH_PASSPHRASE)\r"
+            expect eof
+          EOF
+
+          ssh-add -l
+
+          ssh -o PreferredAuthentications=publickey \
+              -p 6996 stefan@100.76.67.39 \
+              "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart api"
         env:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
