@@ -45,10 +45,15 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Deploy
-        run: |
-          ssh -T -o BatchMode=yes -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 << 'EOF'
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 100.76.67.39
+          username: stefan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: 6996
+          script: |
             cd app/api
-            git pull
+            git pull 
             echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart api
-          EOF
