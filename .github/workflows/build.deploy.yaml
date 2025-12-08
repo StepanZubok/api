@@ -42,7 +42,7 @@ jobs:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.AUTH_KEY2 }}
+          authkey: ${{ secrets.AUTH_KEY }}
 
       - name: Setup SSH
         run: |
@@ -58,4 +58,3 @@ jobs:
       - name: Deploy
         run: |
           ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart api"
-          
