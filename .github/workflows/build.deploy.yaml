@@ -44,17 +44,8 @@ jobs:
           chmod 644 ~/.ssh/known_hosts
           
           ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
-            set -e  # Exit on error
+            set -e
             cd app/api
-            echo "Current branch:"
-            git branch
-            echo "Pulling latest changes..."
             git pull
-            echo "Last commit:"
-            git log -1 --oneline
-            echo "Restarting service..."
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
-            echo "Service status:"
-            sudo systemctl is-active fastapi
-            echo "Deployment complete!"
           ENDSSH
