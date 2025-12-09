@@ -39,18 +39,13 @@ jobs:
           SUDO: ${{ secrets.SUDO_PASSWORD }}
         run: |
           sudo apt-get install -y expect openssh-client
-          mkdir -p ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           eval "$(ssh-agent -s)"
           expect << 'EOF'
-          set timeout 20
           spawn ssh-add $env(HOME)/.ssh/id_rsa
-          expect {
-            "passphrase" { send "$env(PASS)\r"; exp_continue }
-            eof
-          }
+          expect "passphrase" { send "$env(PASS)\r" }
+          expect eof
           EOF
-          ssh -o StrictHostKeyChecking=no -p 6996 stefan@100.76.67.39 \
+          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 \
             "cd app/api && git pull && echo '${SUDO}' | sudo -S systemctl restart fastapi"
