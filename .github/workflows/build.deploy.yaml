@@ -50,4 +50,3 @@ jobs:
             cd app/api
             git pull
             echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
-
