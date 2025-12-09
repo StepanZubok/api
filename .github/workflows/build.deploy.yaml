@@ -31,22 +31,30 @@ jobs:
         with:
           authkey: ${{ secrets.AUTH_KEY }}
       
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # passphrase-less file recommended
+
       - name: Deploy
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
+          # Prepare SSH dir
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+
+          # Write private key (preserve newlines). Don't print the key!
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          # Debug: Check key format
-          head -n 1 ~/.ssh/id_rsa
-          
-          # Add known hosts
+
+          # (optional) Add public host key so ssh doesn't prompt (useful for fixed IP/port)
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          
-          # Test connection with verbose output
-          ssh -vvv -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=no stefan@100.76.67.39 "echo 'Connection successful'"
-          
-          # Deploy
-          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=no stefan@100.76.67.39 \
-            "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi"
-            
+          chmod 644 ~/.ssh/known_hosts
+
+          # Test connection (non-verbose to avoid leaking too much in logs)
+          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes -o BatchMode=yes stefan@100.76.67.39 'echo "CI connection OK"'
+
+          # Deploy: pull and restart (use sudo -S reading password from stdin)
+          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes stefan@100.76.67.39 \
+            "cd app/api && git pull && echo '$SUDO_PASSWORD' | sudo -S systemctl restart fastapi"
