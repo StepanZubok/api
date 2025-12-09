@@ -32,12 +32,34 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.AUTH_KEY }}
+          version: 1.56.1
+      
+      - name: Debug Tailscale Status
+        run: |
+          echo "=== Tailscale Status ==="
+          tailscale status || echo "Tailscale status failed"
+          
+          echo ""
+          echo "=== Tailscale IP ==="
+          tailscale ip -4 || echo "Failed to get Tailscale IP"
+          
+          echo ""
+          echo "=== Network Interfaces ==="
+          ip addr show
+          
+          echo ""
+          echo "=== Try to ping target ==="
+          ping -c 3 100.76.67.39 || echo "Ping failed"
+          
+          echo ""
+          echo "=== Check if Tailscale daemon is running ==="
+          sudo systemctl status tailscaled || echo "Tailscaled status check failed"
       
       - name: Wait for Tailscale connection
         run: |
           echo "Waiting for Tailscale to establish connection..."
-          for i in {1..30}; do
-            if ping -c 1 -W 2 100.76.67.39 > /dev/null 2>&1; then
+          for i in {1..60}; do
+            if tailscale ping --c 1 100.76.67.39 2>&1; then
               echo "Tailscale connection established!"
               break
             fi
@@ -45,9 +67,12 @@ jobs:
             sleep 2
           done
           
-          # Verify connection
-          if ! ping -c 1 -W 2 100.76.67.39 > /dev/null 2>&1; then
+          # Final verification
+          if tailscale ping --c 1 100.76.67.39; then
+            echo "Connection verified!"
+          else
             echo "Failed to establish Tailscale connection"
+            tailscale status
             exit 1
           fi
       
