@@ -33,19 +33,14 @@ jobs:
           authkey: ${{ secrets.AUTH_KEY }}
       
       - name: Deploy via SSH
-        env:
-          KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          PASS: ${{ secrets.SSH_PASSPHRASE }}
-          SUDO: ${{ secrets.SUDO_PASSWORD }}
-        run: |
-          sudo apt-get install -y expect openssh-client
-          mkdir -p ~/.ssh && echo "$KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          expect << 'EOF'
-          spawn ssh-add $env(HOME)/.ssh/id_rsa
-          expect "passphrase" { send "$env(PASS)\r" }
-          expect eof
-          EOF
-          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 \
-            "cd app/api && git pull && echo '${SUDO}' | sudo -S systemctl restart fastapi"
+        uses: appleboy/ssh-action@master
+        with:
+          host: 100.76.67.39
+          username: stefan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: 6996
+          script: |
+            cd app/api
+            git pull
+            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
