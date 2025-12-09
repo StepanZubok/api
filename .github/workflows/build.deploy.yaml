@@ -36,8 +36,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          
+          # Debug: Check key format
+          head -n 1 ~/.ssh/id_rsa
+          
+          # Add known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           
-          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 \
+          # Test connection with verbose output
+          ssh -vvv -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=no stefan@100.76.67.39 "echo 'Connection successful'"
+          
+          # Deploy
+          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=no stefan@100.76.67.39 \
             "cd app/api && git pull && echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi"
             
