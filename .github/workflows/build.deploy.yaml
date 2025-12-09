@@ -1,91 +1,90 @@
 name: Build and deploy code
-on: [push, pull_request]
-
-env:
-  DATABASE_HOSTNAME: localhost
-  DATABASE_PORT: 5432
-  DATABASE_PASSWORD: 12345
-  DATABASE_NAME: fastapi
-  DATABASE_USERNAME: postgres
-  SECRET_KEY: "abc"
-  ALGORITHM: "HS256"
-  ACCESS_TOKEN_EXPIRE_MINUTES: 30
-
+on: [push, pull_request]   
 jobs:
   build:
+    env:
+      DATABASE_HOSTNAME: localhost
+      DATABASE_PORT: 5432
+      DATABASE_PASSWORD: 12345
+      DATABASE_NAME: fastapi
+      DATABASE_USERNAME: postgres
+      SECRET_KEY: "abc"
+      ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: pulling git repo
+        uses: actions/checkout@v2
+      - name: install python
+        uses: actions/setup-python@v2
         with:
           python-version: "3.11"
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
+      - name: update pip
+        run: python -m pip install --upgrade pip
+      - name: install all dependencies
+        run: pip install -r requirements.txt
+      - name: pytests
+        run: |
+          pip install pytest
           pytest
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build]
+    
     steps:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.AUTH_KEY }}
-          version: 1.56.1
-      
-      - name: Debug Tailscale Status
+
+      - name: Setup SSH and Deploy (debug)
+        env:
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
-          echo "=== Tailscale Status ==="
-          tailscale status || echo "Tailscale status failed"
-          
-          echo ""
-          echo "=== Tailscale IP ==="
-          tailscale ip -4 || echo "Failed to get Tailscale IP"
-          
-          echo ""
-          echo "=== Network Interfaces ==="
-          ip addr show
-          
-          echo ""
-          echo "=== Try to ping target ==="
-          ping -c 3 100.76.67.39 || echo "Ping failed"
-          
-          echo ""
-          echo "=== Check if Tailscale daemon is running ==="
-          sudo systemctl status tailscaled || echo "Tailscaled status check failed"
-      
-      - name: Wait for Tailscale connection
-        run: |
-          echo "Waiting for Tailscale to establish connection..."
-          for i in {1..60}; do
-            if tailscale ping --c 1 100.76.67.39 2>&1; then
-              echo "Tailscale connection established!"
-              break
-            fi
-            echo "Attempt $i: Waiting for connection..."
-            sleep 2
-          done
-          
-          # Final verification
-          if tailscale ping --c 1 100.76.67.39; then
-            echo "Connection verified!"
+          sudo apt-get update && sudo apt-get install -y expect openssh-client
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          if ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub 2>/dev/null; then
+            echo "=== local key fingerprint ==="
+            ssh-keygen -lf ~/.ssh/id_rsa.pub || true
           else
-            echo "Failed to establish Tailscale connection"
-            tailscale status
-            exit 1
+            echo "=== ERROR: could not derive public key ==="
+            echo "Check SSH_PRIVATE_KEY and SSH_PASSPHRASE secrets."
           fi
-      
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: 100.76.67.39
-          username: stefan
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 6996
-          command_timeout: 10m
-          script: |
-            cd app/api
-            git pull
-            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
+
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts || true
+          eval "$(ssh-agent -s)"
+
+          if [ -z "$SSH_PASSPHRASE" ]; then
+            echo "No SSH_PASSPHRASE provided — trying direct ssh-add"
+            ssh-add ~/.ssh/id_rsa || echo "ssh-add failed"
+          else
+            echo "Using expect to provide passphrase to ssh-add"
+            expect << 'EXPECT_SCRIPT'
+          set timeout 20
+          set keyfile "$env(HOME)/.ssh/id_rsa"
+          spawn ssh-add $keyfile
+          expect {
+            -re "Enter passphrase" {
+              send "$env(SSH_PASSPHRASE)\r"
+              exp_continue
+            }
+            eof
+          }
+          EXPECT_SCRIPT
+          fi
+
+          echo "=== ssh-agent identities ==="
+          ssh-add -l || true
+
+          echo "=== verbose ssh attempt ==="
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -o PubkeyAuthentication=yes -o BatchMode=yes -p 6996 -vvv stefan@100.76.67.39 "echo CONNECTED" || true
+
+          echo "=== final deploy ==="
+          ssh -i ~/.ssh/id_rsa -o IdentitiesOnly=yes -p 6996 stefan@100.76.67.39 \
+            "cd app/api && git pull && echo \"${SUDO_PASSWORD}\" | sudo -S systemctl restart fastapi" || true
