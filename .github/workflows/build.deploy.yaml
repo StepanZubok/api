@@ -38,17 +38,23 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          
-          # Decode the base64-encoded key
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          # Verify the key
-          head -n 1 ~/.ssh/id_rsa
-          ssh-keygen -y -f ~/.ssh/id_rsa  # Extract public key from private key
-          
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           
-          # Very verbose SSH to see what's happening
-          ssh -vvv -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes -o BatchMode=yes stefan@100.76.67.39 'echo "CI connection OK"' 2>&1 | tail -50
+          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
+            set -e  # Exit on error
+            cd app/api
+            echo "Current branch:"
+            git branch
+            echo "Pulling latest changes..."
+            git pull
+            echo "Last commit:"
+            git log -1 --oneline
+            echo "Restarting service..."
+            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
+            echo "Service status:"
+            sudo systemctl is-active fastapi
+            echo "Deployment complete!"
+          ENDSSH
