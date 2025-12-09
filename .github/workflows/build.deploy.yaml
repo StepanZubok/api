@@ -29,24 +29,25 @@ jobs:
           pytest
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: [build]
-    
-    steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.AUTH_KEY }}
+      runs-on: ubuntu-latest
+      needs: [build]
+      
+      steps:
+        - name: Connect to Tailscale
+          uses: tailscale/github-action@v2
+          with:
+            authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 100.76.67.39
-          username: stefan
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          port: 6996
-          script: |
-            cd app/api
-            git pull
-            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
+        - name: Setup SSH Agent
+          uses: webfactory/ssh-agent@v0.9.0
+          with:
+            ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+        - name: Deploy to Server
+          run: |
+            ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
+            ssh -p 6996 stefan@100.76.67.39 << 'EOF'
+              cd app/api
+              git pull
+              echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
+            EOF
