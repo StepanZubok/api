@@ -38,25 +38,12 @@ jobs:
         with:
           authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Setup SSH and Deploy (secure)
-        # no SSH_PASSPHRASE / SUDO_PASSWORD required if you follow recommendations below
-        uses: actions/checkout@v3
-        # keep this step minimal and fail fast
-      - name: Start ssh-agent (load deploy key)
-        uses: webfactory/ssh-agent@v0.5.3
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@v5.1.0
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Restore trusted host keys
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.SERVER_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Deploy to server
-        run: |
-          set -euo pipefail
-          # strict host checking prevents MITM; agent provides the key
-          ssh -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -p 6996 stefan@100.76.67.39 \
-            'cd app/api && git pull && sudo systemctl restart fastapi'
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: 100.76.67.39
+          REMOTE_USER: stefan
+          REMOTE_PORT: 6996
+          SCRIPT_BEFORE: cd app/api && git pull
+          SCRIPT_AFTER: echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
