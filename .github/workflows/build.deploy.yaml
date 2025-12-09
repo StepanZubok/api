@@ -29,25 +29,33 @@ jobs:
           pytest
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: [build]
-    
-    steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.AUTH_KEY }}
+      runs-on: ubuntu-latest
+      needs: [build]
+      
+      steps:
+        - name: Connect to Tailscale
+          uses: tailscale/github-action@v2
+          with:
+            authkey: ${{ secrets.AUTH_KEY }}
 
-      - name: Deploy to Server
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          eval $(ssh-agent -s)
-          echo "${{ secrets.SSH_PASSPHRASE }}" | SSH_ASKPASS_REQUIRE=never ssh-add ~/.ssh/id_rsa
-          ssh -p 6996 stefan@100.76.67.39 << 'EOF'
-            cd app/api
-            git pull
-            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
-          EOF
+        - name: Deploy to Server
+          env:
+            SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            SSH_PASS: ${{ secrets.SSH_PASSPHRASE }}
+            SUDO_PASS: ${{ secrets.SUDO_PASSWORD }}
+          run: |
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
+            
+            # Decrypt key
+            ssh-keygen -p -P "$SSH_PASS" -N "" -f ~/.ssh/deploy_key
+            
+            # Verify the key works
+            ssh -i ~/.ssh/deploy_key -p 6996 -o BatchMode=yes stefan@100.76.67.39 "echo 'SSH OK'" || exit 1
+            
+            # Deploy
+            ssh -i ~/.ssh/deploy_key -p 6996 stefan@100.76.67.39 \
+              "cd app/api && git pull && echo '$SUDO_PASS' | sudo -S systemctl restart fastapi"
+    
