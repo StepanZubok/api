@@ -30,25 +30,18 @@ jobs:
       - uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.AUTH_KEY }}
-
-      - uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # must be unencrypted key
-
-      - name: Prepare known_hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Deploy (using agent)
+      
+      - name: Deploy
         env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
-          # verify the agent-based connection (BatchMode avoids prompts)
-          ssh -p 6996 -o BatchMode=yes -o StrictHostKeyChecking=yes stefan@100.76.67.39 'echo "CI connection OK"'
-
-          # Deploy commands
-          ssh -p 6996 -o BatchMode=yes -o StrictHostKeyChecking=yes stefan@100.76.67.39 \
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes -o BatchMode=yes stefan@100.76.67.39 'echo "CI connection OK"'
+          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes stefan@100.76.67.39 \
             "cd app/api && git pull && echo '$SUDO_PASSWORD' | sudo -S systemctl restart fastapi"
-
