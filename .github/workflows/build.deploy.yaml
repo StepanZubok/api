@@ -29,33 +29,29 @@ jobs:
           pytest
 
   deploy:
-      runs-on: ubuntu-latest
-      needs: [build]
-      
-      steps:
-        - name: Connect to Tailscale
-          uses: tailscale/github-action@v2
-          with:
-            authkey: ${{ secrets.AUTH_KEY }}
-
-        - name: Deploy to Server
-          env:
-            SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            SSH_PASS: ${{ secrets.SSH_PASSPHRASE }}
-            SUDO_PASS: ${{ secrets.SUDO_PASSWORD }}
-          run: |
-            mkdir -p ~/.ssh
-            echo "$SSH_KEY" > ~/.ssh/deploy_key
-            chmod 600 ~/.ssh/deploy_key
-            ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-            
-            # Decrypt key
-            ssh-keygen -p -P "$SSH_PASS" -N "" -f ~/.ssh/deploy_key
-            
-            # Verify the key works
-            ssh -i ~/.ssh/deploy_key -p 6996 -o BatchMode=yes stefan@100.76.67.39 "echo 'SSH OK'" || exit 1
-            
-            # Deploy
-            ssh -i ~/.ssh/deploy_key -p 6996 stefan@100.76.67.39 \
-              "cd app/api && git pull && echo '$SUDO_PASS' | sudo -S systemctl restart fastapi"
+    runs-on: ubuntu-latest
+    needs: [build]
     
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.AUTH_KEY }}
+
+      - name: Deploy via SSH
+        env:
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts 2>/dev/null
+          
+          # Use sshpass for password + key with passphrase
+          sudo apt-get install -y sshpass
+          
+          sshpass -p "${SSH_PASSPHRASE}" ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -p 6996 stefan@100.76.67.39 \
+            "cd app/api && git pull && echo '${SUDO_PASSWORD}' | sudo -S systemctl restart fastapi"
