@@ -23,7 +23,7 @@ jobs:
           pip install pytest
           pytest
 
-    deploy:
+  deploy:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
