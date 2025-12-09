@@ -23,38 +23,32 @@ jobs:
           pip install pytest
           pytest
 
-  deploy:
+    deploy:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
       - uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.AUTH_KEY }}
-      
+
       - uses: webfactory/ssh-agent@v0.7.0
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # passphrase-less file recommended
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}  # must be unencrypted key
 
-      - name: Deploy
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+      - name: Prepare known_hosts
         run: |
-          # Prepare SSH dir
           mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          # Write private key (preserve newlines). Don't print the key!
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          # (optional) Add public host key so ssh doesn't prompt (useful for fixed IP/port)
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-          # Test connection (non-verbose to avoid leaking too much in logs)
-          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes -o BatchMode=yes stefan@100.76.67.39 'echo "CI connection OK"'
+      - name: Deploy (using agent)
+        env:
+          SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+        run: |
+          # verify the agent-based connection (BatchMode avoids prompts)
+          ssh -p 6996 -o BatchMode=yes -o StrictHostKeyChecking=yes stefan@100.76.67.39 'echo "CI connection OK"'
 
-          # Deploy: pull and restart (use sudo -S reading password from stdin)
-          ssh -i ~/.ssh/id_rsa -p 6996 -o StrictHostKeyChecking=yes stefan@100.76.67.39 \
+          # Deploy commands
+          ssh -p 6996 -o BatchMode=yes -o StrictHostKeyChecking=yes stefan@100.76.67.39 \
             "cd app/api && git pull && echo '$SUDO_PASSWORD' | sudo -S systemctl restart fastapi"
+
