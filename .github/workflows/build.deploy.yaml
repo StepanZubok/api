@@ -39,11 +39,17 @@ jobs:
           authkey: ${{ secrets.AUTH_KEY }}
 
       - name: Deploy to Server
-        uses: easingthemes/ssh-deploy@v5.1.0
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: 100.76.67.39
-          REMOTE_USER: stefan
-          REMOTE_PORT: 6996
-          SCRIPT_BEFORE: cd app/api && git pull
-          SCRIPT_AFTER: echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
+          host: 100.76.67.39
+          username: stefan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          port: 6996
+          script: |
+            cd app/api
+            git fetch --all
+            git reset --hard origin/main
+            echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
+            sleep 2
+            sudo systemctl status fastapi
