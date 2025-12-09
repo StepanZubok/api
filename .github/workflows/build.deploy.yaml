@@ -48,8 +48,6 @@ jobs:
           port: 6996
           script: |
             cd app/api
-            git fetch --all
-            git reset --hard origin/main
+            git pull
             echo "${{ secrets.SUDO_PASSWORD }}" | sudo -S systemctl restart fastapi
-            sleep 2
-            sudo systemctl status fastapi
+
