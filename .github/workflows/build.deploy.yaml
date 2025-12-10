@@ -47,12 +47,18 @@ jobs:
               exit 1
             fi
             
+            echo "Key file created successfully:"
+            ls -lh ~/.ssh/github_actions_key
+            
             # Start ssh-agent
             eval $(ssh-agent -s)
             
+            # Get the full path for expect
+            KEY_PATH="$HOME/.ssh/github_actions_key"
+            
             # Add key with passphrase using expect
             /usr/bin/expect << EOF
-            spawn ssh-add $env(HOME)/.ssh/github_actions_key
+            spawn ssh-add ${KEY_PATH}
             expect "Enter passphrase"
             send "$env(SSH_KEY_PASSPHRASE)\r"
             expect eof
