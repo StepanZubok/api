@@ -37,34 +37,7 @@ jobs:
           
           ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
-            echo "=== Current directory ==="
-            pwd
-            
-            echo "=== Navigating to app/api ==="
             cd app/api
-            pwd
-            
-            echo "=== Current git status BEFORE pull ==="
-            git status
-            git log -1 --oneline
-            
-            echo "=== Pulling latest changes ==="
             git pull
-            
-            echo "=== Git status AFTER pull ==="
-            git status
-            git log -1 --oneline
-            
-            echo "=== Checking if service exists ==="
-            systemctl list-units --type=service | grep fastapi || echo "Service not found!"
-            
-            echo "=== Restarting FastAPI service ==="
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
-            
-            echo "=== Service status ==="
-            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl status fastapi --no-pager
-            
-            echo "=== Recent service logs ==="
-            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S journalctl -u fastapi -n 20 --no-pager
           ENDSSH
-            
