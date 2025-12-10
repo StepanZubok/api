@@ -30,6 +30,9 @@ jobs:
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
           USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         run: |
+          # Install necessary tools
+          sudo apt-get update && sudo apt-get install -y expect sshpass
+          
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           
@@ -37,17 +40,22 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # Start ssh-agent and add key with passphrase (non-interactive)
+          # Start ssh-agent
           eval $(ssh-agent -s)
-          SSH_ASKPASS_REQUIRE=never ssh-add ~/.ssh/id_rsa <<< "$SSH_KEY_PASSPHRASE"
+          
+          # Add key with passphrase using expect
+          expect << EOF
+          spawn ssh-add ~/.ssh/id_rsa
+          expect "Enter passphrase"
+          send "$SSH_KEY_PASSPHRASE\r"
+          expect eof
+          EOF
           
           # Add known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           
           # Deploy with sshpass for the second factor (user password)
-          sudo apt-get update && sudo apt-get install -y sshpass
-          
           sshpass -p "$USER_PASSWORD" ssh -o PreferredAuthentications=publickey,keyboard-interactive \
             -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
