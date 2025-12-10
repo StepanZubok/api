@@ -44,7 +44,7 @@ jobs:
             eval $(ssh-agent -s)
             
             # Add key with passphrase using expect
-            expect << 'EOF'
+            expect << EOF
             spawn ssh-add ~/.ssh/github_actions_key
             expect "Enter passphrase"
             send "$env(SSH_KEY_PASSPHRASE)\r"
