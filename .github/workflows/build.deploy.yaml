@@ -2,6 +2,15 @@ name: Build and deploy code
 on: [push, pull_request]   
 jobs:
   build:
+    env:
+      DATABASE_HOSTNAME: localhost
+      DATABASE_PORT: 5432
+      DATABASE_PASSWORD: 12345
+      DATABASE_NAME: fastapi
+      DATABASE_USERNAME: postgres
+      SECRET_KEY: "abc"
+      ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -12,6 +21,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
+          cp .env.test .env
           pytest
 
   deploy:
@@ -40,3 +50,4 @@ jobs:
             git pull
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
           ENDSSH
+          
