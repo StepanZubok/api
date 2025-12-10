@@ -36,16 +36,23 @@ jobs:
             mkdir -p ~/.ssh
             chmod 700 ~/.ssh
             
-            # Decode and save the key with correct name
-            echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/github_actions_key
+            # Decode and save the key - use printf to avoid newline issues
+            printf "%s" "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/github_actions_key
             chmod 600 ~/.ssh/github_actions_key
+            
+            # Verify the key was created and has content
+            if [ ! -s ~/.ssh/github_actions_key ]; then
+              echo "ERROR: SSH key file is missing or empty"
+              ls -la ~/.ssh/
+              exit 1
+            fi
             
             # Start ssh-agent
             eval $(ssh-agent -s)
             
             # Add key with passphrase using expect
-            expect << EOF
-            spawn ssh-add ~/.ssh/github_actions_key
+            /usr/bin/expect << EOF
+            spawn ssh-add $env(HOME)/.ssh/github_actions_key
             expect "Enter passphrase"
             send "$env(SSH_KEY_PASSPHRASE)\r"
             expect eof
