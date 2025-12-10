@@ -26,19 +26,32 @@ jobs:
       - name: Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KEY_PASSPHRASE: ${{ secrets.SSH_KEY_PASSPHRASE }}
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+          
+          # Decode and save the key
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          
+          # Start ssh-agent and add key with passphrase
+          eval $(ssh-agent -s)
+          echo "$SSH_KEY_PASSPHRASE" | ssh-add ~/.ssh/id_rsa
+          
+          # Add known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           
-          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
+          # Deploy with sshpass for the second factor (user password)
+          sudo apt-get update && sudo apt-get install -y sshpass
+          
+          sshpass -p "$USER_PASSWORD" ssh -o PreferredAuthentications=publickey,keyboard-interactive \
+            -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
             cd app/api
             git pull
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
           ENDSSH
-          
