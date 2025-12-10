@@ -37,9 +37,9 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # Start ssh-agent and add key with passphrase
+          # Start ssh-agent and add key with passphrase (non-interactive)
           eval $(ssh-agent -s)
-          echo "$SSH_KEY_PASSPHRASE" | ssh-add ~/.ssh/id_rsa
+          SSH_ASKPASS_REQUIRE=never ssh-add ~/.ssh/id_rsa <<< "$SSH_KEY_PASSPHRASE"
           
           # Add known hosts
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y sshpass
           
           sshpass -p "$USER_PASSWORD" ssh -o PreferredAuthentications=publickey,keyboard-interactive \
-            -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
+            -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
             cd app/api
             git pull
