@@ -57,8 +57,8 @@ jobs:
             KEY_PATH="$HOME/.ssh/github_actions_key"
             
             # Add key with passphrase using expect
-            /usr/bin/expect << EOF
-            spawn ssh-add ${KEY_PATH}
+            SSH_KEY_PASSPHRASE="$SSH_KEY_PASSPHRASE" /usr/bin/expect << 'EOF'
+            spawn ssh-add $env(HOME)/.ssh/github_actions_key
             expect "Enter passphrase"
             send "$env(SSH_KEY_PASSPHRASE)\r"
             expect eof
