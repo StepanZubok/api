@@ -75,7 +75,11 @@ def login(
         max_age=60 * 60,
     )
 
-    return {"message": "Login successful"}
+    return {
+    "access_token": "token",
+    "token_type": "bearer"
+}
+
 
 
 @router.post("/logout")

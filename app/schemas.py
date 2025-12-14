@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 from pydantic.types import conint
 
 
@@ -59,7 +59,7 @@ class UserLogin(UserBase):
         password : str
 
 class Token(BaseModel):
-        access_token : str
+        access_token : Optional[str]
         token_type : str | None = None
 
         class Config:
