@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
-from fastapi.security.oauth2 import OAuth2PasswordRequestForm
+from fastapi.security.oauth2 import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import UsersTable
@@ -12,22 +12,31 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-# Create router WITHOUT tags in the decorator - add them here
-router = APIRouter(
-    prefix="",  # No prefix, routes at root level
-    tags=["Authentication"]
-)
+router = APIRouter(prefix="", tags=["Authentication"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
 
 def get_current_user_id(
     request: Request,
+    token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    token = request.cookies.get("access_token")
-    if not token:
+    """
+    Get current user from either:
+    1. HTTP-only cookie (for web frontend)
+    2. Authorization header (for tests/API clients)
+    """
+    # Try cookie first (for frontend)
+    cookie_token = request.cookies.get("access_token")
+    
+    # Use cookie if available, otherwise use header token
+    final_token = cookie_token if cookie_token else token
+    
+    if not final_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -46,7 +55,7 @@ def create_access_token(data: dict):
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
 
-@router.post("/login")
+@router.post("/login", response_model=schemas.Token)
 def login(
     response: Response,
     user_credentials: OAuth2PasswordRequestForm = Depends(),
@@ -60,12 +69,13 @@ def login(
         user_credentials.password, user.password
     ):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials",
         )
 
     access_token = create_access_token(data={"user_id": user.id})
 
+    # Set cookie for web frontend
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -75,11 +85,11 @@ def login(
         max_age=60 * 60,
     )
 
+    # Return token for tests/API clients
     return {
-    "access_token": "token",
-    "token_type": "bearer"
-}
-
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 
 @router.post("/logout")
