@@ -94,6 +94,6 @@ def login(
 
 @router.post("/logout")
 def logout(response: Response):
-    """Logout user by clearing cookie"""
+    #Logout user by clearing cookie
     response.delete_cookie(key="access_token")
     return {"message": "Logged out successfully"}
