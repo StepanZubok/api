@@ -5,46 +5,31 @@ from pydantic.types import conint
 
 
 class PostBase(BaseModel):
-        title : str
-        text : str
+    title: str
+    text: str
 
-        class Config:
-            from_attributes = True
+    class Config:
+        from_attributes = True
+
 
 class PostCreate(PostBase):
-        pass
+    pass
+
 
 class PostUpdate(PostBase):
-        pass
-
-class UserResponse(BaseModel):
-        id: int
-        created_at: datetime
-
-class PostResponse(PostBase):
-        id: int
-        created_at: datetime
-        account_id: int
-        account: UserResponse
-
-
-class PostVoteResponse(BaseModel):
-        post : PostResponse
-        vote : int
-
-        class Config:
-            from_attributes = True
-
+    pass
 
 
 class UserBase(BaseModel):
-        email : Annotated[str, Field(pattern=r'^[A-Za-z0-9._+%-]+@(gmail|yahoo|outlook|yandex)\.(com|ru)$')]
-        
-        class Config:
-            from_attributes = True
+    email: Annotated[str, Field(pattern=r'^[A-Za-z0-9._+%-]+@(gmail|yahoo|outlook|yandex)\.(com|ru)$')]
+    
+    class Config:
+        from_attributes = True
+
 
 class UserCreate(UserBase):
-        password : str
+    password: str
+
 
 class UserResponse(BaseModel):
     id: int
@@ -52,22 +37,41 @@ class UserResponse(BaseModel):
     created_at: datetime
     
     class Config:
-        from_attributes = True  # or orm_mode = True in older Pydantic
+        from_attributes = True
+
 
 class UserLogin(UserBase):
-        email : Annotated[str, Field(pattern=r'^[A-Za-z0-9._+%-]+@(gmail|yahoo|outlook|yandex)\.(com|ru)$')]
-        password : str
+    email: Annotated[str, Field(pattern=r'^[A-Za-z0-9._+%-]+@(gmail|yahoo|outlook|yandex)\.(com|ru)$')]
+    password: str
+
 
 class Token(BaseModel):
-        access_token : Optional[str]
-        token_type : str | None = None
+    access_token: str  # Required, not Optional
+    token_type: str    # Required, not Optional
 
-        class Config:
-            from_attributes = True
+    class Config:
+        from_attributes = True
+
 
 class TokenData(BaseModel):
-        id : int | None = None
+    id: int | None = None
+
+
+class PostResponse(PostBase):
+    id: int
+    created_at: datetime
+    account_id: int
+    account: UserResponse
+
+
+class PostVoteResponse(BaseModel):
+    post: PostResponse
+    vote: int
+
+    class Config:
+        from_attributes = True
+
 
 class VoteBase(BaseModel):
-        post_id : int
-        vote_option : conint(le=1) #constrained int
+    post_id: int
+    vote_option: conint(le=1)  # constrained int
