@@ -87,25 +87,24 @@ def login(
 
     # ✅ Set access token cookie
     response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=120,  # 2 minutes
-        path="/",
-    )
+    key="access_token",
+    value=access_token,
+    httponly=True,
+    secure=True,                 # must be True when SameSite=None
+    samesite="none",             # allow cross-site requests
+    max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    path="/",
+)
 
-    # ✅ Set refresh token cookie  
     response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=86400,  # 1 day (in seconds)
-        path="/",
-    )
+    key="refresh_token",
+    value=refresh_token,
+    httponly=True,
+    secure=True,
+    samesite="none",
+    max_age=1 * 60,
+    path="/",
+)
     
     print(f"✅ Both cookies should be set")
     print(f"🔍 Response headers: {response.headers}")
@@ -148,11 +147,12 @@ def refresh_token(
         # ✅ Set the new access token in cookie
         response.set_cookie(
             key="access_token",
-            value=new_access_token,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            max_age=60 * 60,
+    value=new_access_token,
+    httponly=True,
+    secure=True,
+    samesite="none",
+    max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    path="/",
         )
         
         return {
