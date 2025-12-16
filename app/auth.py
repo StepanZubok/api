@@ -50,8 +50,14 @@ def get_current_user_id(
 
 def create_access_token(data: dict):
     to_encrypt = data.copy()
-    expiration_date = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encrypt.update({"exp": expiration_date})
+    expire = datetime.utcnow() + timedelta(minutes=2)
+    to_encrypt.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(data: dict):
+    to_encrypt = data.copy()
+    expire = datetime.utcnow() + timedelta(days=0.01)
+    to_encrypt.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -74,26 +80,100 @@ def login(
         )
 
     access_token = create_access_token(data={"user_id": user.id})
+    refresh_token = create_refresh_token(data={"user_id": user.id})
 
-    # Set cookie for web frontend
+    print(f"🍪 Setting access_token: {access_token[:20]}...")
+    print(f"🍪 Setting refresh_token: {refresh_token[:20]}...")
+
+    # ✅ Set access token cookie
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="none",
-        max_age=60 * 60,
+        secure=False,
+        samesite="lax",
+        max_age=120,  # 2 minutes
+        path="/",
     )
 
-    # Return token for tests/API clients
+    # ✅ Set refresh token cookie  
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400,  # 1 day (in seconds)
+        path="/",
+    )
+    
+    print(f"✅ Both cookies should be set")
+    print(f"🔍 Response headers: {response.headers}")
+
     return {
         "access_token": access_token,
         "token_type": "bearer"
     }
 
+@router.post("/refresh")
+def refresh_token(
+    response: Response,  # ← Add this parameter
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    # Get refresh token from cookie
+    refresh_token = request.cookies.get("refresh_token")
+    
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    
+    try:
+        # Decode and verify
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        
+        # Check it's a refresh token (not access token)
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        
+        user_id = payload.get("user_id")
+        
+        # Verify user still exists
+        user = db.query(UsersTable).filter(UsersTable.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        # Create NEW access token
+        new_access_token = create_access_token(data={"user_id": user.id})
+        
+        # ✅ Set the new access token in cookie
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=60 * 60,
+        )
+        
+        return {
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        }
+        
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
 
 @router.post("/logout")
 def logout(response: Response):
     #Logout user by clearing cookie
-    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="access_token", samesite="lax")
+    response.delete_cookie(key="refresh_token", samesite="lax")
     return {"message": "Logged out successfully"}
+
+@router.get("/me", response_model=schemas.UserBase)
+def get_current_user(
+    current_user: UsersTable = Depends(get_current_user_id)
+):
+    """Get current authenticated user"""
+    return current_user

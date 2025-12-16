@@ -1,37 +1,89 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import axios from "axios";
+import api from "../api/axios";
 
 export default function Home() {
   const navigate = useNavigate();
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lastCheck, setLastCheck] = useState(new Date().toLocaleTimeString());
+
+  // Initial fetch
+  useEffect(() => {
+    const fetchUserData = async () => {
+      // ✅ Add small delay to ensure cookies are processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      try {
+        console.log('🔍 Initial fetch - Fetching user data...');
+        const response = await api.get("/me");
+        setUserData(response.data);
+        console.log('✅ User data loaded:', response.data);
+      } catch (err) {
+        console.error('❌ Initial fetch failed:', err);
+        console.error('Error details:', err.response?.data);
+        // Don't redirect - let interceptor handle it
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData(); 
+  }, []);
+
+  // Periodic check to test token refresh (every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        console.log('🔄 Periodic check - verifying authentication...');
+        const response = await api.get("/me");
+        setLastCheck(new Date().toLocaleTimeString());
+        console.log('✅ Auth check passed at', lastCheck);
+      } catch (err) {
+        console.error('❌ Auth check failed:', err);
+        // Interceptor will handle redirect if refresh fails
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [lastCheck]);
 
   const handleLogout = async () => {
     try {
-      await axios.post("http://192.168.1.250:8000/logout", {}, {
-        withCredentials: true,
-      });
+      await api.post("/logout");
       toast.success("Logged out successfully");
       navigate("/login");
-    } catch (error) {
+    } catch (err) {
       toast.error("Logout failed");
     }
   };
 
+  if (loading) {
+    return <div className="text-center p-4">Loading...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto pt-10 p-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold mb-4">Welcome Home! 🏠</h1>
-          <p className="text-lg text-gray-700 mb-6">
-            You are successfully logged in!
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Home</h1>
+          {userData && (
+            <p className="text-gray-600">Welcome, {userData.email}!</p>
+          )}
+          <p className="text-xs text-gray-400 mt-1">
+            Last auth check: {lastCheck}
           </p>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg"
-          >
-            Logout
-          </button>
+          <p className="text-xs text-yellow-600">
+            Access token: 2min | Refresh token: 14.4min
+          </p>
         </div>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );
