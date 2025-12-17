@@ -92,7 +92,7 @@ def login(
     httponly=True,
     secure=False,                 # must be True when SameSite=Nnone    
     samesite="none",             # allow cross-site requests
-    domain="localhost"
+    domain="localhost",
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     path="/",
 )
@@ -103,7 +103,7 @@ def login(
     httponly=True,
     secure=False,
     samesite="none",
-    domain="localhost"
+    domain="localhost",
     max_age=1 * 60,
     path="/",
 )
@@ -153,7 +153,7 @@ def refresh_token(
     httponly=True,
     secure=False,
     samesite="none",
-    domain="localhost"
+    domain="localhost",
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
     #aa
     path="/",
