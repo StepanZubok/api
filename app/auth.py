@@ -164,6 +164,7 @@ def logout(response: Response):
     return {"message": "Logged out successfully"}
 
 
+
 @router.get("/me", response_model=schemas.UserBase)
 def get_current_user(current_user: UsersTable = Depends(get_current_user_id)):
     """Return the current authenticated user."""

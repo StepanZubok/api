@@ -71,6 +71,9 @@ export default function Home() {
         const url = `/posts?${params.toString()}`;
         console.log("Making request to:", url);
 
+        // In fetchPosts, before the api.get call:
+        console.log("API instance baseURL:", api.defaults.baseURL);
+        console.log("Full URL will be:", `/posts?${params.toString()}`);
         const res = await api.get(url);
         
         if (mounted) {
