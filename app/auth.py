@@ -32,13 +32,18 @@ def get_current_user_id(
     cookie_token = request.cookies.get("access_token")
     final_token = cookie_token or token
 
+    logger.info(f"Cookie token: {'present' if cookie_token else 'missing'}")
+    logger.info(f"Auth header token: {'present' if token else 'missing'}")
+    logger.info(f"All cookies: {request.cookies}")
+
     if not final_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
         payload = jwt.decode(final_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
-    except JWTError:
+    except JWTError as e:
+        logger.error(f"JWT decode error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user = db.query(UsersTable).filter(UsersTable.id == user_id).first()
@@ -79,7 +84,8 @@ def login(
 
     logger.info("Setting authentication cookies for user_id=%s", user.id)
 
-    # Set cookies (SameSite=lax to work behind proxies)
+    # CRITICAL: Do NOT set domain, let it default to the request origin
+    # This allows cookies to work through proxy
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -88,6 +94,7 @@ def login(
         samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
+        # domain is NOT set - this is critical!
     )
 
     response.set_cookie(
@@ -98,6 +105,7 @@ def login(
         samesite="lax",
         max_age=7 * 24 * 60 * 60,
         path="/",
+        # domain is NOT set - this is critical!
     )
 
     logger.info("Login successful for user_id=%s", user.id)
@@ -109,6 +117,9 @@ def login(
 def refresh_token(response: Response, request: Request, db: Session = Depends(get_db)):
     """Refresh access token using refresh_token cookie."""
     refresh_token = request.cookies.get("refresh_token")
+    
+    logger.info(f"Refresh request cookies: {request.cookies}")
+    
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
 
