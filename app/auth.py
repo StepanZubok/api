@@ -91,8 +91,7 @@ def login(
     value=access_token,
     httponly=True,
     secure=False,
-    domain="192.168.1.250",                 # must be True when SameSite=lax
-    samesite="lax",             # allow cross-site requests
+    samesite="none",             # allow cross-site requests
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     path="/",
 )
@@ -102,8 +101,7 @@ def login(
     value=refresh_token,
     httponly=True,
     secure=False,
-    domain="192.168.1.250",
-    samesite="lax",
+    samesite="none",
     max_age=1 * 60,
     path="/",
 )
@@ -152,10 +150,8 @@ def refresh_token(
     value=new_access_token,
     httponly=True,
     secure=False,
-    domain="192.168.1.250",
-    samesite="lax",
+    samesite="none",
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
-    #aa
     path="/",
         )
         
@@ -171,8 +167,8 @@ def refresh_token(
 @router.post("/logout")
 def logout(response: Response):
     #Logout user by clearing cookie
-    response.delete_cookie(key="access_token", samesite="lax")
-    response.delete_cookie(key="refresh_token", samesite="lax")
+    response.delete_cookie(key="access_token", samesite="none")
+    response.delete_cookie(key="refresh_token", samesite="none")
     return {"message": "Logged out successfully"}
 
 @router.get("/me", response_model=schemas.UserBase)
