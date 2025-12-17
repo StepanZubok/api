@@ -12,18 +12,24 @@ export default function Home() {
   // Initial fetch
   useEffect(() => {
     const fetchUserData = async () => {
-      // ✅ Add small delay to ensure cookies are processed
+      // Add delay to ensure cookies are processed
       await new Promise(resolve => setTimeout(resolve, 100));
       
       try {
         console.log('🔍 Initial fetch - Fetching user data...');
+        console.log('🍪 Document cookies:', document.cookie);
+        
         const response = await api.get("/me");
         setUserData(response.data);
         console.log('✅ User data loaded:', response.data);
       } catch (err) {
         console.error('❌ Initial fetch failed:', err);
         console.error('Error details:', err.response?.data);
-        // Don't redirect - let interceptor handle it
+        console.error('Error status:', err.response?.status);
+        
+        // Don't redirect immediately - let's see what's happening
+        // Uncomment this after debugging:
+        // navigate("/login");
       } finally {
         setLoading(false);
       }
@@ -42,9 +48,8 @@ export default function Home() {
         console.log('✅ Auth check passed at', lastCheck);
       } catch (err) {
         console.error('❌ Auth check failed:', err);
-        // Interceptor will handle redirect if refresh fails
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [lastCheck]);
@@ -68,14 +73,19 @@ export default function Home() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Home</h1>
-          {userData && (
+          {userData ? (
             <p className="text-gray-600">Welcome, {userData.email}!</p>
+          ) : (
+            <p className="text-red-600">⚠️ Not authenticated - check console</p>
           )}
           <p className="text-xs text-gray-400 mt-1">
             Last auth check: {lastCheck}
           </p>
           <p className="text-xs text-yellow-600">
             Access token: 2min | Refresh token: 14.4min
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            🍪 Cookies: {document.cookie || '(none)'}
           </p>
         </div>
         <button

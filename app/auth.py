@@ -50,13 +50,13 @@ def get_current_user_id(
 
 def create_access_token(data: dict):
     to_encrypt = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=2)
+    expire = datetime.utcnow() + timedelta(minutes=200)
     to_encrypt.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict):
     to_encrypt = data.copy()
-    expire = datetime.utcnow() + timedelta(days=0.01)
+    expire = datetime.utcnow() + timedelta(days=1)
     to_encrypt.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -92,6 +92,7 @@ def login(
     httponly=True,
     secure=False,                 # must be True when SameSite=Nnone    
     samesite="none",             # allow cross-site requests
+    domain="localhost"
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     path="/",
 )
@@ -102,6 +103,7 @@ def login(
     httponly=True,
     secure=False,
     samesite="none",
+    domain="localhost"
     max_age=1 * 60,
     path="/",
 )
@@ -151,6 +153,7 @@ def refresh_token(
     httponly=True,
     secure=False,
     samesite="none",
+    domain="localhost"
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
     #aa
     path="/",
