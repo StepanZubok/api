@@ -1,14 +1,18 @@
+from datetime import datetime, timedelta
+from typing import Optional
+import logging
+
 from fastapi import APIRouter, Depends, status, HTTPException, Response, Request
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+
 from .database import get_db
 from .models import UsersTable
 from . import hash_verify, schemas
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
 from .config import settings
-from typing import Optional
 
+# Config
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -16,14 +20,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 router = APIRouter(prefix="", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
 
+logger = logging.getLogger(__name__)
 
 
 def get_current_user_id(
     request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    # Prefer cookie, fallback to header token
+    """Resolve user from cookie first, then Authorization header."""
     cookie_token = request.cookies.get("access_token")
     final_token = cookie_token or token
 
@@ -43,17 +48,18 @@ def get_current_user_id(
     return user
 
 
-def create_access_token(data: dict):
-    to_encrypt = data.copy()
+def create_access_token(data: dict) -> str:
+    payload = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encrypt.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
+    payload.update({"exp": expire, "type": "access"})
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(data: dict):
-    to_encrypt = data.copy()
-    expire = datetime.utcnow() + timedelta(days=7)  # 7 days
-    to_encrypt.update({"exp": expire, "type": "refresh"})
-    return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(data: dict) -> str:
+    payload = data.copy()
+    expire = datetime.utcnow() + timedelta(days=7)
+    payload.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 @router.post("/login", response_model=schemas.Token)
@@ -62,31 +68,24 @@ def login(
     user_credentials: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    user = db.query(UsersTable).filter(
-        UsersTable.email == user_credentials.username
-    ).first()
+    """Authenticate user, set access and refresh cookies, return access token."""
+    user = db.query(UsersTable).filter(UsersTable.email == user_credentials.username).first()
 
-    if not user or not hash_verify.verify(
-        user_credentials.password, user.password
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid credentials",
-        )
+    if not user or not hash_verify.verify(user_credentials.password, user.password):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials")
 
     access_token = create_access_token(data={"user_id": user.id})
     refresh_token = create_refresh_token(data={"user_id": user.id})
 
-    print(f"🍪 Setting access_token: {access_token[:20]}...")
-    print(f"🍪 Setting refresh_token: {refresh_token[:20]}...")
+    logger.info("Setting authentication cookies for user_id=%s", user.id)
 
-    # ✅ Set cookies with SameSite=lax (works with proxy)
+    # Set cookies (SameSite=lax to work behind proxies)
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         secure=False,
-        samesite="lax",  # ✅ Changed back to lax
+        samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -96,79 +95,65 @@ def login(
         value=refresh_token,
         httponly=True,
         secure=False,
-        samesite="lax",  # ✅ Changed back to lax
-        max_age=7 * 24 * 60 * 60,  # 7 days in seconds
+        samesite="lax",
+        max_age=7 * 24 * 60 * 60,
         path="/",
     )
-    
-    print(f"✅ Both cookies should be set")
-    print(f"🔍 Response headers: {response.headers}")
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    logger.info("Login successful for user_id=%s", user.id)
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/refresh")
-def refresh_token(
-    response: Response,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    # Get refresh token from cookie
+def refresh_token(response: Response, request: Request, db: Session = Depends(get_db)):
+    """Refresh access token using refresh_token cookie."""
     refresh_token = request.cookies.get("refresh_token")
-    
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
-    
+
     try:
-        # Decode and verify
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        # Check it's a refresh token (not access token)
+
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        
+
         user_id = payload.get("user_id")
-        
-        # Verify user still exists
         user = db.query(UsersTable).filter(UsersTable.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        
-        # Create NEW access token
+
         new_access_token = create_access_token(data={"user_id": user.id})
-        
-        # ✅ Set the new access token in cookie
+
         response.set_cookie(
             key="access_token",
             value=new_access_token,
             httponly=True,
             secure=False,
-            samesite="lax",  # ✅ Changed back to lax
+            samesite="lax",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/",
         )
-        
-        return {
-            "access_token": new_access_token,
-            "token_type": "bearer"
-        }
-        
+
+        logger.info("Access token refreshed for user_id=%s", user.id)
+
+        return {"access_token": new_access_token, "token_type": "bearer"}
+
     except JWTError:
+        logger.warning("Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 
 @router.post("/logout")
 def logout(response: Response):
-    """Logout user by clearing cookies"""
+    """Logout user by clearing auth cookies."""
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
+    logger.info("User logged out; cookies cleared")
     return {"message": "Logged out successfully"}
 
+
 @router.get("/me", response_model=schemas.UserBase)
-def get_current_user(
-    current_user: UsersTable = Depends(get_current_user_id)
-):
-    """Get current authenticated user"""
+def get_current_user(current_user: UsersTable = Depends(get_current_user_id)):
+    """Return the current authenticated user."""
     return current_user
