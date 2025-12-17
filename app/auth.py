@@ -7,31 +7,26 @@ from . import hash_verify, schemas
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from .config import settings
+from typing import Optional
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(prefix="", tags=["Authentication"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", auto_error=False)
+
 
 
 def get_current_user_id(
     request: Request,
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    """
-    Get current user from either:
-    1. HTTP-only cookie (for web frontend)
-    2. Authorization header (for tests/API clients)
-    """
-    # Try cookie first (for frontend)
+    # Prefer cookie, fallback to header token
     cookie_token = request.cookies.get("access_token")
-    
-    # Use cookie if available, otherwise use header token
-    final_token = cookie_token if cookie_token else token
-    
+    final_token = cookie_token or token
+
     if not final_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
