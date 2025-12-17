@@ -188,3 +188,5 @@ def get_current_user(
     print(f"📥 Incoming cookies: {request.cookies}")
     print(f"🔑 Access token from cookie: {request.cookies.get('access_token', 'NOT FOUND')}")
     return current_user
+
+     
