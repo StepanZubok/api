@@ -51,10 +51,11 @@ export default function Login() {
 
     toast.success("Login successful");
     
-    // ✅ REMOVE the /me test - just navigate directly
     addDebugLog("🔄 Redirecting to /home...", "info");
     
-    // Navigate immediately - Home component will handle verification
+    // ✅ Add small delay to ensure cookies are set
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     navigate("/home");
 
   } catch (err) {
