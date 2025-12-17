@@ -26,20 +26,13 @@ def get_current_user_id(
     1. HTTP-only cookie (for web frontend)
     2. Authorization header (for tests/API clients)
     """
-    # 🔍 DEBUG
-    print(f"🔍 All cookies received: {request.cookies}")
-    
     # Try cookie first (for frontend)
     cookie_token = request.cookies.get("access_token")
-    
-    print(f"🍪 Cookie token: {cookie_token[:20] if cookie_token else 'NONE'}...")
-    print(f"🔑 Header token: {token[:20] if token else 'NONE (expected for web)'}...")
     
     # Use cookie if available, otherwise use header token
     final_token = cookie_token if cookie_token else token
     
     if not final_token:
-        print("❌ No token found in cookies OR headers!")
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
@@ -97,7 +90,7 @@ def login(
     key="access_token",
     value=access_token,
     httponly=True,
-    secure=False,
+    secure=False,                 # must be True when SameSite=Nlax    
     samesite="lax",             # allow cross-site requests
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     path="/",
@@ -159,6 +152,7 @@ def refresh_token(
     secure=False,
     samesite="lax",
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
+    #aa
     path="/",
         )
         
@@ -180,13 +174,7 @@ def logout(response: Response):
 
 @router.get("/me", response_model=schemas.UserBase)
 def get_current_user(
-    request: Request,  # ← Dodaj Request
     current_user: UsersTable = Depends(get_current_user_id)
 ):
     """Get current authenticated user"""
-    # 🔍 DEBUG: Print incoming cookies
-    print(f"📥 Incoming cookies: {request.cookies}")
-    print(f"🔑 Access token from cookie: {request.cookies.get('access_token', 'NOT FOUND')}")
     return current_user
-
-     
