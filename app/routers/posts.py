@@ -9,11 +9,26 @@ from typing import Optional
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 @router.get("/", response_model=List[schemas.PostVoteResponse])
-def get_posts(db : Session = Depends(database.get_db), current_user_id : int = Depends(auth.get_current_user_id), limit: int = 10, skip : int = 0, search : Optional[str] = ""):
-    # posts = db.query(models.PostsTable).filter(models.PostsTable.account_id == current_user_id).all()
-    posts = db.query(models.PostsTable).filter(models.PostsTable.title.contains(search)).limit(limit).offset(skip).all()
-    results = db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.PostsTable.id == models.Vote.post_id, isouter=True).group_by(models.PostsTable.id).filter(models.PostsTable.title.contains(search)).limit(limit).offset(skip).all()
-    return [{"post" : post, "vote" : vote} for post, vote in results]
+def get_posts(
+    db: Session = Depends(database.get_db), 
+    current_user: models.UsersTable = Depends(auth.get_current_user_id),  # Renamed for clarity
+    limit: int = 10, 
+    skip: int = 0, 
+    search: Optional[str] = ""
+):
+    # Query posts belonging to the authenticated user
+    results = (
+        db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes"))
+        .join(models.Vote, models.PostsTable.id == models.Vote.post_id, isouter=True)
+        .group_by(models.PostsTable.id)
+        .filter(models.PostsTable.account_id == current_user.id)  # ← Add this filter
+        .filter(models.PostsTable.title.contains(search))
+        .limit(limit)
+        .offset(skip)
+        .all()
+    )
+    
+    return [{"post": post, "vote": vote} for post, vote in results]
  
 @router.get("/{id}", response_model=schemas.PostVoteResponse)
 def get_post_id(id : int, db : Session = Depends(database.get_db), current_user_id : int = Depends(auth.get_current_user_id)):
