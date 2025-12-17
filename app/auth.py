@@ -90,7 +90,7 @@ def login(
     key="access_token",
     value=access_token,
     httponly=True,
-    secure=True,                 # must be True when SameSite=None
+    secure=False,                 # must be True when SameSite=None
     samesite="none",             # allow cross-site requests
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     path="/",
@@ -100,7 +100,7 @@ def login(
     key="refresh_token",
     value=refresh_token,
     httponly=True,
-    secure=True,
+    secure=False,
     samesite="none",
     max_age=1 * 60,
     path="/",
@@ -149,7 +149,7 @@ def refresh_token(
             key="access_token",
     value=new_access_token,
     httponly=True,
-    secure=True,
+    secure=False,
     samesite="none",
     max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
     #aa
