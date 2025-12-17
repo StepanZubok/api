@@ -17,17 +17,7 @@ def get_posts(
     search: Optional[str] = ""
 ):
     # Query posts belonging to the authenticated user
-    results = (
-        db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes"))
-        .join(models.Vote, models.PostsTable.id == models.Vote.post_id, isouter=True)
-        .group_by(models.PostsTable.id)
-        .filter(models.PostsTable.account_id == current_user.id)  # ← Add this filter
-        .filter(models.PostsTable.title.contains(search))
-        .limit(limit)
-        .offset(skip)
-        .all()
-    )
-       
+    results = (db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.PostsTable.id == models.Vote.post_id, isouter=True).group_by(models.PostsTable.id).filter(models.PostsTable.account_id == current_user.id).filter(models.PostsTable.title.contains(search)).limit(limit).offset(skip).all())
     return [{"post": post, "vote": vote} for post, vote in results]
  
 @router.get("/{id}", response_model=schemas.PostVoteResponse)
