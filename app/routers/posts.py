@@ -8,7 +8,7 @@ from typing import Optional
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
-@router.get("/", response_model=List[schemas.PostVoteResponse])
+@router.get("", response_model=List[schemas.PostVoteResponse])
 def get_posts(
     db: Session = Depends(database.get_db), 
     current_user: models.UsersTable = Depends(auth.get_current_user_id),  # Renamed for clarity
