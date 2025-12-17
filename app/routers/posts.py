@@ -27,7 +27,7 @@ def get_posts(
         .offset(skip)
         .all()
     )
-    
+       
     return [{"post": post, "vote": vote} for post, vote in results]
  
 @router.get("/{id}", response_model=schemas.PostVoteResponse)
