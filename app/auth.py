@@ -50,13 +50,13 @@ def get_current_user_id(
 
 def create_access_token(data: dict):
     to_encrypt = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=200)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encrypt.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict):
     to_encrypt = data.copy()
-    expire = datetime.utcnow() + timedelta(days=1)
+    expire = datetime.utcnow() + timedelta(days=7)  # 7 days
     to_encrypt.update({"exp": expire, "type": "refresh"})
     return jwt.encode(to_encrypt, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -85,28 +85,26 @@ def login(
     print(f"🍪 Setting access_token: {access_token[:20]}...")
     print(f"🍪 Setting refresh_token: {refresh_token[:20]}...")
 
-    # ✅ Set access token cookie
+    # ✅ Set cookies with SameSite=lax (works with proxy)
     response.set_cookie(
-    key="access_token",
-    value=access_token,
-    httponly=True,
-    secure=False,                 # must be True when SameSite=Nnone    
-    samesite="none",             # allow cross-site requests
-    domain="localhost",
-    max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    path="/",
-)
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",  # ✅ Changed back to lax
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
 
     response.set_cookie(
-    key="refresh_token",
-    value=refresh_token,
-    httponly=True,
-    secure=False,
-    samesite="none",
-    domain="localhost",
-    max_age=1 * 60,
-    path="/",
-)
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",  # ✅ Changed back to lax
+        max_age=7 * 24 * 60 * 60,  # 7 days in seconds
+        path="/",
+    )
     
     print(f"✅ Both cookies should be set")
     print(f"🔍 Response headers: {response.headers}")
@@ -118,7 +116,7 @@ def login(
 
 @router.post("/refresh")
 def refresh_token(
-    response: Response,  # ← Add this parameter
+    response: Response,
     request: Request,
     db: Session = Depends(get_db)
 ):
@@ -149,14 +147,12 @@ def refresh_token(
         # ✅ Set the new access token in cookie
         response.set_cookie(
             key="access_token",
-    value=new_access_token,
-    httponly=True,
-    secure=False,
-    samesite="none",
-    domain="localhost",
-    max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  
-    #aa
-    path="/",
+            value=new_access_token,
+            httponly=True,
+            secure=False,
+            samesite="lax",  # ✅ Changed back to lax
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            path="/",
         )
         
         return {
@@ -170,9 +166,9 @@ def refresh_token(
 
 @router.post("/logout")
 def logout(response: Response):
-    #Logout user by clearing cookie
-    response.delete_cookie(key="access_token", samesite="none")
-    response.delete_cookie(key="refresh_token", samesite="none")
+    """Logout user by clearing cookies"""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "Logged out successfully"}
 
 @router.get("/me", response_model=schemas.UserBase)
