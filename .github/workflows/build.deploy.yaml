@@ -37,11 +37,11 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           
           echo "Adding host to known_hosts..."
-          ssh-keyscan -p 22 100.76.67.39 >> ~/.ssh/known_hosts
+          ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           
           echo "Connecting to server..."
-          ssh -i ~/.ssh/id_rsa -p 22 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
+          ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
             echo "Connected! Pulling latest code..."
             cd app/api
