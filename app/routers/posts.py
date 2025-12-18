@@ -33,7 +33,7 @@ def get_post_id(id : int, db : Session = Depends(database.get_db), current_user_
 
 @router.post("/",status_code=status.HTTP_201_CREATED, response_model=schemas.PostResponse)
 def create_post(post : schemas.PostCreate, db : Session = Depends(database.get_db), current_user_id : int = Depends(auth.get_current_user_id)):
-    new_post = models.PostsTable(account_id = current_user_id , **post.dict())
+    new_post = models.PostsTable(account_id = current_user_id, **post.dict())
     db.add(new_post)
     db.commit()
     db.refresh(new_post)

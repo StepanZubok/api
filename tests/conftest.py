@@ -69,7 +69,8 @@ def authorized_client(client, token):
     # client.headers={**client.headers,"Authorization" : f"Bearer {token}"}
     
     # Set the access_token as a cookie instead of Authorization header
-    client.cookies.set("access_token", token)
+    # client.cookies.set("access_token", token)
+    client.cookies = {"access_token": token}
     return client
 
 @pytest.fixture
