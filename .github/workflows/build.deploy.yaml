@@ -29,48 +29,15 @@ jobs:
           SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
         run: |
           set -e
-          
-          echo "Setting up SSH..."
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          echo "Adding host to known_hosts..."
           ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
           
-          echo "Connecting to server..."
           ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
-            echo "Connected! Pulling latest code..."
             cd app/api
             git pull
-            
-            echo "Restarting FastAPI service..."
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
-            
-            echo "Deployment complete!"
           ENDSSH
-          
-          echo "Deploy finished successfully!"
-          
-      
-      # - name: Deploy
-      #   env:
-      #     SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      #     SUDO_PASSWORD: ${{ secrets.SUDO_PASSWORD }}
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     chmod 700 ~/.ssh
-      #     echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
-      #     chmod 600 ~/.ssh/id_rsa
-      #     ssh-keyscan -p 6996 100.76.67.39 >> ~/.ssh/known_hosts
-      #     chmod 644 ~/.ssh/known_hosts
-          
-      #     ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
-      #       set -e
-      #       cd app/api
-      #       git pull
-      #       echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
-      #     ENDSSH
