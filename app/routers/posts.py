@@ -7,7 +7,7 @@ from app import models, schemas, database, auth
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
-@router.get("/", response_model=List[schemas.PostVoteResponse])
+@router.get("", response_model=List[schemas.PostVoteResponse])
 def get_posts( db: Session = Depends(database.get_db),  current_user: models.UsersTable = Depends(auth.get_current_user_id), limit: int = 10,  skip: int = 0,  search: Optional[str] = ""):
     results = (
         db.query(models.PostsTable, func.count(models.Vote.post_id).label("votes"))
