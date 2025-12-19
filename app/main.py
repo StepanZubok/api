@@ -5,7 +5,11 @@ from .database import engine
 from .routers import posts, users, votes
 from . import auth
 
-app = FastAPI()
+app = FastAPI(
+    title="Your API",
+    version="1.0.0",
+    openapi_version="3.1.0"  # ← This fixes the /docs error
+)
 
 origins = [
     "http://localhost:3000",
