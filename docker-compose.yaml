@@ -2,8 +2,8 @@ version: "3"
 services: 
   frontend:
     build: 
-      context: .
-      dockerfile: ./frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - 80:80
     depends_on:
@@ -12,8 +12,8 @@ services:
 
   api:
     build: 
-      context: .
-      dockerfile: ./app/Dockerfile
+      context: ./app
+      dockerfile: Dockerfile
     depends_on:
       - postgres
     ports: 
