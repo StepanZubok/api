@@ -43,6 +43,7 @@ jobs:
             # Pull latest code
             git pull
 
+            source ../venv/bin/activate
             alembic upgrade head
             
             # Stop and remove old containers
