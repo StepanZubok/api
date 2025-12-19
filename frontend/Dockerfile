@@ -1,7 +1,7 @@
 FROM node:18-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-COPY src ./src
+COPY ./frontend/public ./public
 RUN npm install
 COPY . .
 RUN npm run build
