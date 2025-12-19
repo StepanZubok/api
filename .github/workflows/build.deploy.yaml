@@ -1,5 +1,6 @@
 name: Build and deploy code
 on: [push, pull_request]   
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,7 +38,19 @@ jobs:
           
           ssh -i ~/.ssh/id_rsa -p 6996 stefan@100.76.67.39 'bash -s' << 'ENDSSH'
             set -e
-            cd app/api
+            cd ~/app/api
+            
+            # Pull latest code
             git pull
-            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S systemctl restart fastapi
+
+            alembic upgrade head
+            
+            # Stop and remove old containers
+            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S docker-compose down
+            
+            # Rebuild and start all services
+            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S docker-compose up -d --build
+            
+            # Optional: Clean up old images
+            echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S docker system prune -f
           ENDSSH
