@@ -45,6 +45,9 @@ jobs:
 
             source ../venv/bin/activate
             alembic upgrade head
+
+            sudo apt install -y docker.io
+
             
             # Stop and remove old containers
             echo '${{ secrets.SUDO_PASSWORD }}' | sudo -S docker-compose down
